@@ -12,7 +12,14 @@
 (function(global) {
   'use strict';
 
-  const windowRef = typeof window !== 'undefined' ? window : global;
+  // Détection robuste de l'objet global
+  const windowRef = typeof window !== 'undefined' 
+    ? window 
+    : typeof global !== 'undefined' 
+      ? global 
+      : typeof globalThis !== 'undefined'
+        ? globalThis
+        : {};
 
   class GroupsSwapManager {
     constructor(algorithm) {
@@ -318,4 +325,10 @@
     module.exports = GroupsSwapManager;
   }
 
-})(typeof window !== 'undefined' ? window : global);
+})(typeof window !== 'undefined' 
+  ? window 
+  : typeof global !== 'undefined' 
+    ? global 
+    : typeof globalThis !== 'undefined'
+      ? globalThis
+      : {});
