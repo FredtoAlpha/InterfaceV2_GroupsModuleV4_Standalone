@@ -42,10 +42,18 @@
         loadedClasses: [],
         selectedClassesForModal: [],
 
+        // Résultats de génération
+        generatedGroups: [],
+        statistics: [],
+        alerts: [],
+
         // UI
         isLoading: false,
         error: null
       };
+
+      // Tracker les listeners pour éviter les fuites mémoire
+      this.listeners = [];
 
       this.scenarios = {
         needs: {
@@ -91,51 +99,81 @@
     }
 
     init() {
-      this.setupEventListeners();
       this.loadStateFromStorage();
+      this.loadClassesFromBackend();
       this.render();
     }
 
     setupEventListeners() {
+      // Nettoyer les anciens listeners
+      this.removeEventListeners();
+
       // Fermer le module
-      documentRef.getElementById('close-module')?.addEventListener('click', () => {
-        this.close();
-      });
+      const closeBtn = documentRef.getElementById('close-module');
+      if (closeBtn) {
+        const handler = () => this.close();
+        closeBtn.addEventListener('click', handler);
+        this.listeners.push({ element: closeBtn, event: 'click', handler });
+      }
 
       // Continuer
-      documentRef.getElementById('continue-button')?.addEventListener('click', () => {
-        this.nextPhase();
-      });
+      const continueBtn = documentRef.getElementById('continue-button');
+      if (continueBtn) {
+        const handler = () => this.nextPhase();
+        continueBtn.addEventListener('click', handler);
+        this.listeners.push({ element: continueBtn, event: 'click', handler });
+      }
 
-      // Modal
+      // Modal close buttons
       documentRef.querySelectorAll('.modal-close').forEach(btn => {
-        btn.addEventListener('click', () => {
-          this.closeModal();
-        });
+        const handler = () => this.closeModal();
+        btn.addEventListener('click', handler);
+        this.listeners.push({ element: btn, event: 'click', handler });
       });
 
-      documentRef.getElementById('modal-new-association')?.addEventListener('click', (e) => {
-        if (e.target.id === 'modal-new-association') {
-          this.closeModal();
-        }
-      });
+      // Modal overlay click
+      const modal = documentRef.getElementById('modal-new-association');
+      if (modal) {
+        const handler = (e) => {
+          if (e.target.id === 'modal-new-association') {
+            this.closeModal();
+          }
+        };
+        modal.addEventListener('click', handler);
+        this.listeners.push({ element: modal, event: 'click', handler });
+      }
 
       // Validation passe
-      documentRef.getElementById('validate-pass-button')?.addEventListener('click', () => {
-        this.validateNewAssociation();
-      });
+      const validateBtn = documentRef.getElementById('validate-pass-button');
+      if (validateBtn) {
+        const handler = () => this.validateNewAssociation();
+        validateBtn.addEventListener('click', handler);
+        this.listeners.push({ element: validateBtn, event: 'click', handler });
+      }
 
       // Recherche classes dans modal
-      documentRef.getElementById('class-search')?.addEventListener('input', (e) => {
-        this.filterClasses(e.target.value);
+      const searchInput = documentRef.getElementById('class-search');
+      if (searchInput) {
+        const handler = (e) => this.filterClasses(e.target.value);
+        searchInput.addEventListener('input', handler);
+        this.listeners.push({ element: searchInput, event: 'input', handler });
+      }
+    }
+
+    removeEventListeners() {
+      this.listeners.forEach(({ element, event, handler }) => {
+        element.removeEventListener(event, handler);
       });
+      this.listeners = [];
     }
 
     render() {
+      this.removeEventListeners();
       this.renderPhases();
       this.renderContent();
       this.renderSummary();
       this.updateContinueButton();
+      this.setupEventListeners();
       this.saveStateToStorage();
     }
 
@@ -490,6 +528,84 @@
       }
     }
 
+    nextPhase() {
+      // Phase 3 → Générer les groupes
+      if (this.state.currentPhase === 3 && this.canAdvancePhase()) {
+        this.generateGroups();
+        return;
+      }
+
+      // Autres phases → Avancer
+      if (this.state.currentPhase < this.state.totalPhases) {
+        this.state.currentPhase++;
+        this.render();
+      }
+    }
+
+    generateGroups() {
+      console.log('🚀 Génération des groupes...');
+      this.state.isLoading = true;
+      this.render();
+
+      // Préparer le payload
+      const payload = {
+        students: this.state.loadedClasses,
+        scenario: this.state.scenario,
+        distributionMode: this.state.distributionMode,
+        associations: this.state.associations
+      };
+
+      // Appeler l'algorithme
+      if (window.GroupsAlgorithmV4) {
+        try {
+          const algorithm = new window.GroupsAlgorithmV4();
+          const result = algorithm.generateGroups(payload);
+
+          if (result.success) {
+            this.state.generatedGroups = result.passes || result.groups;
+            this.state.statistics = result.statistics;
+            this.state.alerts = result.alerts;
+            this.state.currentPhase = 4; // Phase 4 : Affichage
+            console.log('✅ Génération réussie');
+            console.log('Groupes générés:', this.state.generatedGroups);
+            console.log('Alertes:', this.state.alerts);
+          } else {
+            this.state.error = result.error || 'Erreur inconnue';
+            console.error('❌ Erreur:', this.state.error);
+          }
+        } catch (error) {
+          this.state.error = error.message;
+          console.error('❌ Exception:', error);
+        }
+      } else {
+        this.state.error = 'Algorithme non disponible';
+        console.error('❌ GroupsAlgorithmV4 non trouvé');
+      }
+
+      this.state.isLoading = false;
+      this.render();
+    }
+
+    loadClassesFromBackend() {
+      // Essayer de charger les classes du backend
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run.withSuccessHandler((classes) => {
+          if (classes && Array.isArray(classes)) {
+            this.state.loadedClasses = classes;
+            this.render();
+          }
+        }).withFailureHandler((error) => {
+          console.warn('⚠️ Impossible de charger les classes du backend:', error);
+          // Utiliser des classes par défaut
+          this.state.loadedClasses = ['6°1', '6°2', '5°1', '5°2', '4°1', '4°2'];
+          this.render();
+        }).getAvailableClasses();
+      } else {
+        // Environnement de test : utiliser des classes par défaut
+        this.state.loadedClasses = ['6°1', '6°2', '5°1', '5°2', '4°1', '4°2'];
+      }
+    }
+
     openNewAssociationModal() {
       const modal = documentRef.getElementById('modal-new-association');
       if (modal) {
@@ -510,8 +626,10 @@
       const container = documentRef.getElementById('classes-selector');
       if (!container) return;
 
-      // Exemple de classes (à remplacer par les vraies données)
-      const classes = ['6°1', '6°2', '5°1', '5°2', '4°1', '4°2'];
+      // Utiliser les vraies classes chargées du backend
+      const classes = this.state.loadedClasses && this.state.loadedClasses.length > 0
+        ? this.state.loadedClasses
+        : ['6°1', '6°2', '5°1', '5°2', '4°1', '4°2'];
 
       container.innerHTML = classes.map(cls => `
         <label class="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer">
@@ -521,9 +639,9 @@
       `).join('');
 
       container.querySelectorAll('.class-checkbox').forEach(checkbox => {
-        checkbox.addEventListener('change', () => {
-          this.updateSelectedClasses();
-        });
+        const handler = () => this.updateSelectedClasses();
+        checkbox.addEventListener('change', handler);
+        this.listeners.push({ element: checkbox, event: 'change', handler });
       });
     }
 
@@ -570,8 +688,22 @@
       const name = documentRef.getElementById('pass-name')?.value || `Passe ${String.fromCharCode(65 + this.state.associations.length)}`;
       const groupCount = parseInt(documentRef.getElementById('num-groups')?.value || 3);
 
+      // Validation avec messages inline
       if (this.state.selectedClassesForModal.length < 2) {
-        alert('Sélectionnez au least 2 classes');
+        this.showInlineError('pass-validation-info', 
+          '❌ Sélectionnez au moins 2 classes');
+        return;
+      }
+
+      if (!name.trim()) {
+        this.showInlineError('pass-validation-info', 
+          '❌ Entrez un nom pour la passe');
+        return;
+      }
+
+      if (groupCount < 2 || groupCount > 10) {
+        this.showInlineError('pass-validation-info', 
+          '❌ Le nombre de groupes doit être entre 2 et 10');
         return;
       }
 
@@ -584,8 +716,17 @@
       };
 
       this.state.associations.push(association);
-      this.closeModal();
+      this.showInlineError('pass-validation-info', 
+        '✅ Passe créée avec succès');
+      setTimeout(() => this.closeModal(), 500);
       this.render();
+    }
+
+    showInlineError(elementId, message) {
+      const el = documentRef.getElementById(elementId);
+      if (el) {
+        el.innerHTML = `<p style="color: ${message.includes('✅') ? '#16a34a' : '#dc2626'}; font-size: 0.875rem;">${message}</p>`;
+      }
     }
 
     saveStateToStorage() {

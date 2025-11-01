@@ -12,7 +12,14 @@
 (function(global) {
   'use strict';
 
-  const windowRef = typeof window !== 'undefined' ? window : global;
+  // Détection robuste de l'objet global
+  const windowRef = typeof window !== 'undefined' 
+    ? window 
+    : typeof global !== 'undefined' 
+      ? global 
+      : typeof globalThis !== 'undefined'
+        ? globalThis
+        : {};
 
   class GroupsAlgorithmV4 {
     constructor() {
@@ -104,15 +111,25 @@
 
       // Calculer moyenne et écart-type pour chaque champ
       fields.forEach(field => {
-        const values = students.map(s => s[field]).filter(v => v !== null && v !== undefined);
+        const values = students
+          .map(s => s[field])
+          .filter(v => v !== null && v !== undefined && !isNaN(v));
+
+        // Guard : si aucune valeur valide
+        if (values.length === 0) {
+          console.warn(`⚠️ Aucune valeur valide pour ${field}`);
+          stats[field] = { mean: 0, stdDev: 1 };
+          return;
+        }
+
         const mean = values.reduce((a, b) => a + b, 0) / values.length;
         const variance = values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / values.length;
-        const stdDev = Math.sqrt(variance);
+        const stdDev = Math.sqrt(variance) || 1; // Éviter division par 0
 
         stats[field] = { mean, stdDev };
       });
 
-      // Appliquer z-score et imputer les valeurs manquantes par la médiane
+      // Appliquer z-score avec guards pour les valeurs manquantes
       const normalized = students.map(student => {
         const normalized = { ...student };
 
@@ -120,18 +137,9 @@
           const value = student[field];
           const { mean, stdDev } = stats[field];
 
-          if (value === null || value === undefined) {
-            // Imputer par la médiane de la classe d'origine
-            const classValues = students
-              .filter(s => s.classe === student.classe && s[field] !== null)
-              .map(s => s[field])
-              .sort((a, b) => a - b);
-            
-            const median = classValues.length > 0
-              ? classValues[Math.floor(classValues.length / 2)]
-              : mean;
-
-            normalized[`z_${field}`] = stdDev > 0 ? (median - mean) / stdDev : 0;
+          if (value === null || value === undefined || isNaN(value)) {
+            // Valeur neutre pour les données manquantes
+            normalized[`z_${field}`] = 0;
           } else {
             normalized[`z_${field}`] = stdDev > 0 ? (value - mean) / stdDev : 0;
           }
@@ -366,6 +374,75 @@
       console.log('Payload:', payload);
 
       try {
+        // Cas 1 : Passes multiples
+        if (payload.associations && payload.associations.length > 0) {
+          return this.generateGroupsWithPasses(payload);
+        }
+
+        // Cas 2 : Génération simple
+        return this.generateGroupsForPass(payload);
+      } catch (error) {
+        console.error('❌ Erreur lors de la génération:', error);
+        return {
+          success: false,
+          error: error.message,
+          timestamp: new Date().toISOString()
+        };
+      }
+    }
+
+    /**
+     * Générer les groupes pour plusieurs passes
+     */
+    generateGroupsWithPasses(payload) {
+      const results = [];
+
+      for (const pass of payload.associations) {
+        console.log(`📋 Traitement de la passe: ${pass.name}`);
+
+        // Filtrer les élèves de cette passe
+        const studentsForPass = payload.students.filter(s => 
+          pass.classes.includes(s.classe)
+        );
+
+        if (studentsForPass.length === 0) {
+          console.warn(`⚠️ Aucun élève pour la passe ${pass.name}`);
+          continue;
+        }
+
+        // Générer les groupes pour cette passe
+        const passPayload = {
+          students: studentsForPass,
+          scenario: payload.scenario,
+          distributionMode: payload.distributionMode,
+          numGroups: pass.groupCount
+        };
+
+        const passResult = this.generateGroupsForPass(passPayload);
+
+        results.push({
+          passName: pass.name,
+          passId: pass.id,
+          groups: passResult.groups,
+          statistics: passResult.statistics,
+          alerts: passResult.alerts
+        });
+      }
+
+      return {
+        success: results.length > 0,
+        passes: results,
+        totalPasses: results.length,
+        timestamp: new Date().toISOString(),
+        metadata: payload
+      };
+    }
+
+    /**
+     * Générer les groupes pour une seule passe
+     */
+    generateGroupsForPass(payload) {
+      try {
         // 1. Consolidation
         const consolidated = this.consolidateData(payload.students, payload.scenario);
 
@@ -409,7 +486,9 @@
         return {
           success: false,
           error: error.message,
-          timestamp: new Date().toISOString()
+          groups: [],
+          statistics: [],
+          alerts: []
         };
       }
     }
@@ -423,4 +502,10 @@
     module.exports = GroupsAlgorithmV4;
   }
 
-})(typeof window !== 'undefined' ? window : global);
+})(typeof window !== 'undefined' 
+  ? window 
+  : typeof global !== 'undefined' 
+    ? global 
+    : typeof globalThis !== 'undefined'
+      ? globalThis
+      : {});
