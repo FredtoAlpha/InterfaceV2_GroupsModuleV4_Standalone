@@ -1811,6 +1811,8 @@ function loadFINSheetsWithScores() {
           sexe: (row[4] || '').toString().trim().toUpperCase(),
           lv2: (row[5] || '').toString().trim(),
           opt: (row[6] || '').toString().trim(),
+          classe: name,  // ✅ AJOUT : Nom complet avec FIN (ex: "6°1FIN")
+          classeCanonical: className,  // ✅ AJOUT : Nom sans suffixe (ex: "6°1")
           scores: {
             // 🔑 SCORES ACADÉMIQUES (CRITIQUES POUR L'ALGORITHME DE GROUPES)
             F: scoreF,    // Colonne U : Score Français
@@ -1829,7 +1831,12 @@ function loadFINSheetsWithScores() {
         eleves.push(eleve);
       });
 
-      result[className] = { eleves };
+      result[className] = { 
+        eleves,
+        classeRaw: name,  // ✅ AJOUT : Nom complet de l'onglet (ex: "6°1FIN")
+        suffix: 'FIN',    // ✅ AJOUT : Suffixe détecté
+        canonical: className  // ✅ AJOUT : Nom canonique (ex: "6°1")
+      };
       console.log('✅ ' + className + ': ' + eleves.length + ' élève(s) chargés');
     });
 
