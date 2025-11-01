@@ -3608,6 +3608,885 @@ window.addEventListener('DOMContentLoaded', (event) => {
   })();
 
   // =======================================================
+  // 1.6B GESTION DU BOUTON GROUPES
+  // =======================================================
+  (function() {
+    const btnGroups = document.getElementById('btnGroups');
+    
+    if (!btnGroups) {
+      console.warn('Bouton Groupes non trouvé');
+      return;
+    }
+    
+    btnGroups.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      console.log('🚀 Clic sur bouton Groupes - Ouverture Interface V4');
+      
+      // Ouvrir directement la nouvelle interface V4
+      if (window.ModuleGroupsV4) {
+        // Si le module V4 existe déjà
+        const existingModule = document.getElementById('groups-module-v4-container');
+        if (existingModule) {
+          existingModule.style.display = 'flex';
+        } else {
+          window.ModuleGroupsV4.init();
+        }
+      } else {
+        // Créer et afficher la nouvelle interface V4
+        createNewInterfaceV4();
+      }
+    });
+    
+    console.log('✅ Bouton Groupes initialisé');
+  })();
+
+  // =======================================================
+  // 1.6C FONCTION DE CRÉATION DE L'INTERFACE V4
+  // =======================================================
+  function createNewInterfaceV4() {
+    console.log('🚀 Création de la nouvelle interface V4');
+    
+    // Charger l'algorithme de répartition si pas déjà chargé
+    if (!window.GroupsAlgorithmV4) {
+      console.log('📦 Chargement de GroupsAlgorithmV4...');
+      const script = document.createElement('script');
+      script.src = 'GroupsAlgorithmV4_Distribution.js';
+      script.onload = () => {
+        console.log('✅ GroupsAlgorithmV4 chargé');
+      };
+      script.onerror = () => {
+        console.error('❌ Erreur chargement GroupsAlgorithmV4');
+      };
+      document.head.appendChild(script);
+    }
+    
+    // Créer le conteneur principal
+    const container = document.createElement('div');
+    container.id = 'groups-module-v4-container';
+    container.className = 'fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/70 px-4';
+    
+    // Charger le HTML de l'interface V4 - VUE D'ENSEMBLE PERMANENTE
+    container.innerHTML = `
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-[98vw] h-[96vh] overflow-hidden flex flex-col">
+        <!-- Header compact avec contexte permanent -->
+        <header class="px-6 py-3 border-b border-slate-200 bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center justify-between">
+          <div class="flex items-center gap-6">
+            <div class="flex items-center gap-3">
+              <div class="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center text-2xl">✨</div>
+              <div>
+                <h2 class="text-lg font-bold text-white">Module Groupes V4</h2>
+                <p class="text-xs text-purple-100">Vue d'ensemble permanente</p>
+              </div>
+            </div>
+            
+            <!-- Header contextuel avec progression -->
+          <div class="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white flex items-center justify-between">
+            <div class="flex items-center gap-6 text-sm">
+              <div class="flex items-center gap-2">
+                <span class="text-purple-200">Type:</span>
+                <span id="context-scenario" class="font-semibold">Non sélectionné</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-purple-200">Mode:</span>
+                <span id="context-mode" class="font-semibold">Non sélectionné</span>
+              </div>
+              <div class="flex items-center gap-2 px-3 py-1 bg-white/20 rounded-lg">
+                <i class="fas fa-layer-group"></i>
+                <span class="font-bold" id="context-count">0</span>
+                <span class="text-purple-200">scénarios</span>
+              </div>
+              <div class="flex items-center gap-2 px-3 py-1 bg-green-500/30 rounded-lg">
+                <i class="fas fa-check-circle"></i>
+                <span class="font-bold" id="context-ready">0</span>
+                <span class="text-purple-200">prêts</span>
+              </div>
+            </div>
+          </div>
+          <button type="button" id="close-groups-v4" class="text-white/80 hover:text-white p-2 hover:bg-white/10 rounded-lg transition-colors">
+            <i class="fas fa-times text-xl"></i>
+          </button>
+        </header>
+
+        <!-- LAYOUT : 3 colonnes permanentes TOUJOURS VISIBLES -->
+        <div class="flex-1 flex overflow-hidden">
+          
+          <!-- COLONNE 1 : PARAMÈTRES ÉPINGLÉS (240px) -->
+          <div class="w-[240px] border-r border-slate-200 bg-slate-50 flex flex-col">
+            <!-- Type de groupes -->
+            <div class="p-3 border-b border-slate-200 bg-white">
+              <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wide">Type de groupes</h3>
+            </div>
+            <div class="p-3 space-y-2">
+              <button id="btn-needs" class="scenario-btn w-full p-3 rounded-lg border-2 border-slate-200 bg-white hover:border-blue-400 transition-all text-left">
+                <div class="flex items-center gap-2">
+                  <div class="text-xl">📊</div>
+                  <span class="font-bold text-sm text-slate-900">Besoins</span>
+                </div>
+              </button>
+              
+              <button id="btn-lv2" class="scenario-btn w-full p-3 rounded-lg border-2 border-slate-200 bg-white hover:border-purple-400 transition-all text-left">
+                <div class="flex items-center gap-2">
+                  <div class="text-xl">🗣️</div>
+                  <span class="font-bold text-sm text-slate-900">LV2</span>
+                </div>
+              </button>
+            </div>
+            
+            <!-- Mode de distribution -->
+            <div class="p-3 border-b border-t border-slate-200 bg-white mt-3">
+              <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wide">Mode de distribution</h3>
+            </div>
+            <div class="p-3 space-y-2">
+              <button id="btn-heterogeneous" class="distribution-btn w-full p-3 rounded-lg border-2 border-slate-200 bg-gradient-to-br from-blue-50 to-blue-100 hover:border-blue-400 transition-all text-left">
+                <div class="flex items-center gap-2">
+                  <div class="text-xl">🔀</div>
+                  <span class="font-bold text-sm text-slate-900">Hétérogène</span>
+                </div>
+              </button>
+              
+              <button id="btn-homogeneous" class="distribution-btn w-full p-3 rounded-lg border-2 border-slate-200 bg-gradient-to-br from-purple-50 to-purple-100 hover:border-purple-400 transition-all text-left">
+                <div class="flex items-center gap-2">
+                  <div class="text-xl">📊</div>
+                  <span class="font-bold text-sm text-slate-900">Homogène</span>
+                </div>
+              </button>
+            </div>
+            
+            <!-- Classes disponibles -->
+            <div class="p-3 border-b border-t border-slate-200 bg-white mt-3">
+              <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wide">Classes disponibles</h3>
+            </div>
+            <div class="flex-1 overflow-y-auto p-3">
+              <div id="available-classes-list" class="space-y-1 text-xs">
+                <!-- Sera rempli dynamiquement -->
+              </div>
+            </div>
+          </div>
+          
+          <!-- COLONNE 2 : LISTE DES REGROUPEMENTS (280px) -->
+          <div class="w-[280px] border-r border-slate-200 bg-white flex flex-col">
+            <!-- Bandeau d'objectif pédagogique -->
+            <div class="p-4 border-b border-slate-200 bg-gradient-to-br from-purple-50 to-blue-50">
+              <div class="flex items-start gap-2 mb-2">
+                <i class="fas fa-info-circle text-purple-600 mt-0.5"></i>
+                <div>
+                  <p class="text-xs font-semibold text-slate-900 mb-1">Qu'est-ce qu'un regroupement ?</p>
+                  <p class="text-xs text-slate-600 leading-relaxed">Un <strong>regroupement</strong> = un scénario d'association de classes pour générer plusieurs groupes d'élèves.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="p-4 border-b border-slate-200 bg-slate-50">
+              <h3 class="text-sm font-bold text-slate-700 mb-2">Mes scénarios</h3>
+              <p class="text-xs text-slate-500 mb-3">Créez et comparez plusieurs regroupements</p>
+              <button id="btn-new-regroupement" class="w-full px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm">
+                <i class="fas fa-plus mr-2"></i> Créer un nouveau scénario
+              </button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto">
+              <div id="regroupements-list" class="p-3 space-y-2">
+                <!-- Liste des regroupements -->
+                <div class="text-center text-slate-400 py-8">
+                  <i class="fas fa-layer-group text-3xl mb-2"></i>
+                  <p class="text-xs">Aucun scénario créé</p>
+                  <p class="text-xs mt-1">Commencez par créer votre premier regroupement</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="p-3 border-t border-slate-200 bg-gradient-to-br from-slate-50 to-purple-50">
+              <div id="generate-all-summary" class="text-xs text-slate-600 mb-2 hidden">
+                <div class="flex items-center justify-between mb-1">
+                  <span><i class="fas fa-check-circle text-green-600 mr-1"></i><span id="summary-ready">0</span> prêts</span>
+                  <span><i class="fas fa-edit text-yellow-600 mr-1"></i><span id="summary-draft">0</span> brouillons</span>
+                </div>
+              </div>
+              <button id="btn-generate-all" class="w-full px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-sm font-bold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg" disabled>
+                <i class="fas fa-magic mr-2"></i> Générer tous les scénarios
+              </button>
+              <p id="generate-all-warning" class="text-xs text-orange-600 mt-2 hidden">
+                <i class="fas fa-exclamation-triangle mr-1"></i>
+                Certains scénarios sont incomplets
+              </p>
+            </div>
+          </div>
+          
+          <!-- COLONNE 3 : DÉTAIL DU REGROUPEMENT ACTIF (flex-1) -->
+          <div class="flex-1 bg-white flex flex-col">
+            <div id="regroupement-detail-header" class="p-4 border-b border-slate-200 bg-slate-50 hidden">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <h3 id="detail-title" class="text-lg font-bold text-slate-900">Scénario 1</h3>
+                  <button class="text-slate-400 hover:text-purple-600 transition-colors" title="Un regroupement = un scénario d'association de classes qui produira plusieurs groupes d'élèves">
+                    <i class="fas fa-info-circle"></i>
+                  </button>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="detail-autosave" class="text-xs text-green-600 hidden">
+                    <i class="fas fa-check-circle mr-1"></i>Sauvegardé automatiquement
+                  </span>
+                  <button id="btn-delete-current" class="px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 text-xs font-semibold rounded-lg transition-colors">
+                    <i class="fas fa-trash mr-1"></i> Supprimer
+                  </button>
+                </div>
+              </div>
+              
+              <!-- Stats du regroupement -->
+              <div class="flex items-center gap-4 text-xs">
+                <div class="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-lg">
+                  <i class="fas fa-school text-blue-600"></i>
+                  <span class="text-blue-900"><span id="detail-classes-count">0</span> classes</span>
+                </div>
+                <div class="flex items-center gap-2 px-3 py-1.5 bg-green-50 rounded-lg">
+                  <i class="fas fa-users text-green-600"></i>
+                  <span class="text-green-900"><span id="detail-students-count">0</span> élèves</span>
+                </div>
+                <div class="flex items-center gap-2 px-3 py-1.5 bg-purple-50 rounded-lg">
+                  <i class="fas fa-layer-group text-purple-600"></i>
+                  <span class="text-purple-900"><span id="detail-groups-count">3</span> groupes</span>
+                </div>
+              </div>
+            </div>
+            
+            <div id="regroupement-detail-content" class="flex-1 overflow-y-auto p-6">
+              <!-- Message par défaut -->
+              <div id="detail-empty" class="flex items-center justify-center h-full text-slate-400">
+                <div class="text-center">
+                  <i class="fas fa-arrow-left text-4xl mb-3"></i>
+                  <p class="text-sm">Sélectionnez ou créez un regroupement</p>
+                </div>
+              </div>
+              
+              <!-- Contenu du regroupement -->
+              <div id="detail-form" class="hidden space-y-6">
+                <!-- Sélection des classes -->
+                <div>
+                  <label class="text-sm font-bold text-slate-900 mb-3 block">Classes participantes</label>
+                  <div id="detail-classes-selector" class="grid grid-cols-2 gap-2">
+                    <!-- Checkboxes générées dynamiquement -->
+                  </div>
+                </div>
+                
+                <!-- Nombre de groupes -->
+                <div>
+                  <label class="text-sm font-bold text-slate-900 mb-3 block">
+                    <i class="fas fa-layer-group text-purple-600 mr-2"></i>
+                    Combien de groupes voulez-vous obtenir pour ce regroupement ?
+                  </label>
+                  <div class="flex items-center gap-4">
+                    <input type="number" id="detail-groups-input" min="2" max="10" value="3" class="w-24 px-4 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent text-center text-lg font-bold">
+                    <span class="text-sm text-slate-600">groupes d'élèves</span>
+                  </div>
+                  <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p class="text-xs text-blue-900">
+                      <i class="fas fa-lightbulb text-blue-600 mr-1"></i>
+                      <strong>Recommandation :</strong> 3-4 groupes permettent un bon équilibre entre effectifs et diversité.
+                    </p>
+                  </div>
+                </div>
+                
+                <!-- Aperçu avant génération -->
+                <div id="detail-preview" class="p-4 bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200 rounded-xl hidden">
+                  <h4 class="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
+                    <i class="fas fa-eye text-blue-600"></i>
+                    Aperçu de la génération
+                  </h4>
+                  <div class="grid grid-cols-3 gap-3 text-xs">
+                    <div class="bg-white p-3 rounded-lg border border-blue-200">
+                      <div class="text-slate-500 mb-1">Groupes créés</div>
+                      <div class="text-2xl font-bold text-blue-600" id="preview-groups-count">0</div>
+                    </div>
+                    <div class="bg-white p-3 rounded-lg border border-blue-200">
+                      <div class="text-slate-500 mb-1">Taille moyenne</div>
+                      <div class="text-2xl font-bold text-green-600" id="preview-avg-size">0</div>
+                    </div>
+                    <div class="bg-white p-3 rounded-lg border border-blue-200">
+                      <div class="text-slate-500 mb-1">Mode</div>
+                      <div class="text-sm font-bold text-purple-600" id="preview-mode">-</div>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Boutons d'action -->
+                <div class="pt-4 border-t border-slate-200 space-y-2">
+                  <button id="btn-generate-current" class="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-xl shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    <i class="fas fa-magic mr-2"></i> Générer les groupes de ce scénario
+                  </button>
+                  <button id="btn-duplicate-current" class="w-full px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-lg transition-colors">
+                    <i class="fas fa-copy mr-2"></i> Dupliquer ce scénario
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(container);
+    
+    // État de l'interface
+    const state = {
+      scenario: null,
+      distributionMode: null,
+      regroupements: [],
+      currentRegroupement: null
+    };
+    
+    // Références DOM - NOUVELLE ARCHITECTURE
+    const contextScenario = container.querySelector('#context-scenario');
+    const contextMode = container.querySelector('#context-mode');
+    const contextCount = container.querySelector('#context-count');
+    const availableClassesList = container.querySelector('#available-classes-list');
+    const regroupementsList = container.querySelector('#regroupements-list');
+    const btnNewRegroupement = container.querySelector('#btn-new-regroupement');
+    const btnGenerateAll = container.querySelector('#btn-generate-all');
+    
+    const detailHeader = container.querySelector('#regroupement-detail-header');
+    const detailEmpty = container.querySelector('#detail-empty');
+    const detailForm = container.querySelector('#detail-form');
+    const detailTitle = container.querySelector('#detail-title');
+    const detailClassesCount = container.querySelector('#detail-classes-count');
+    const detailStudentsCount = container.querySelector('#detail-students-count');
+    const detailGroupsCount = container.querySelector('#detail-groups-count');
+    const detailClassesSelector = container.querySelector('#detail-classes-selector');
+    const detailGroupsInput = container.querySelector('#detail-groups-input');
+    const detailPreview = container.querySelector('#detail-preview');
+    const previewGroupsCount = container.querySelector('#preview-groups-count');
+    const previewAvgSize = container.querySelector('#preview-avg-size');
+    const previewMode = container.querySelector('#preview-mode');
+    const detailAutosave = container.querySelector('#detail-autosave');
+    const btnGenerateCurrent = container.querySelector('#btn-generate-current');
+    const btnDuplicateCurrent = container.querySelector('#btn-duplicate-current');
+    const btnDeleteCurrent = container.querySelector('#btn-delete-current');
+    
+    // ═══════════════════════════════════════════════════════════════
+    //  LOGIQUE VUE D'ENSEMBLE PERMANENTE
+    // ═══════════════════════════════════════════════════════════════
+    
+    console.log('🎯 Initialisation de la vue d\'ensemble permanente');
+    
+    // Classes disponibles
+    const availableClasses = [
+      { id: '6°1', name: '6°1', students: 24 },
+      { id: '6°2', name: '6°2', students: 25 },
+      { id: '6°3', name: '6°3', students: 23 },
+      { id: '6°4', name: '6°4', students: 26 },
+      { id: '6°5', name: '6°5', students: 24 }
+    ];
+    
+    let regroupementCounter = 0;
+    let currentRegroupementId = null;
+    
+    // Initialiser la liste des classes disponibles
+    function initAvailableClassesList() {
+      availableClassesList.innerHTML = availableClasses.map(cls => `
+        <div class="flex items-center justify-between p-2 bg-white rounded border border-slate-200">
+          <span class="font-medium text-slate-700">${cls.name}</span>
+          <span class="text-slate-500">${cls.students} él.</span>
+        </div>
+      `).join('');
+    }
+    
+    // Mettre à jour le header contextuel avec progression
+    function updateHeaderContext() {
+      const scenarioNames = { 'needs': 'Besoins', 'lv2': 'LV2' };
+      const modeNames = { 'heterogeneous': 'Hétérogène', 'homogeneous': 'Homogène' };
+      
+      contextScenario.textContent = state.scenario ? scenarioNames[state.scenario] : 'Non sélectionné';
+      contextMode.textContent = state.distributionMode ? modeNames[state.distributionMode] : 'Non sélectionné';
+      contextCount.textContent = state.regroupements.length;
+      
+      // Compter les scénarios prêts (≥2 classes)
+      const contextReady = container.querySelector('#context-ready');
+      if (contextReady) {
+        const readyCount = state.regroupements.filter(r => r.classes.length >= 2).length;
+        contextReady.textContent = readyCount;
+      }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    //  VOLET 1 : SÉLECTION DU SCÉNARIO ET MODE
+    // ═══════════════════════════════════════════════════════════════
+    
+    const btnNeeds = container.querySelector('#btn-needs');
+    const btnLv2 = container.querySelector('#btn-lv2');
+    const btnHeterogeneous = container.querySelector('#btn-heterogeneous');
+    const btnHomogeneous = container.querySelector('#btn-homogeneous');
+    
+    function selectScenario(scenario, button) {
+      state.scenario = scenario;
+      console.log(`✅ Scénario: ${scenario}`);
+      
+      [btnNeeds, btnLv2].forEach(btn => {
+        btn.classList.remove('ring-2', 'ring-purple-500', 'bg-purple-50');
+      });
+      button.classList.add('ring-2', 'ring-purple-500', 'bg-purple-50');
+      
+      updateHeaderContext();
+    }
+    
+    function selectDistribution(mode, button) {
+      state.distributionMode = mode;
+      console.log(`✅ Mode: ${mode}`);
+      
+      [btnHeterogeneous, btnHomogeneous].forEach(btn => {
+        btn.classList.remove('ring-2', 'ring-purple-500');
+      });
+      button.classList.add('ring-2', 'ring-purple-500');
+      
+      updateHeaderContext();
+    }
+    
+    btnNeeds.addEventListener('click', () => selectScenario('needs', btnNeeds));
+    btnLv2.addEventListener('click', () => selectScenario('lv2', btnLv2));
+    btnHeterogeneous.addEventListener('click', () => selectDistribution('heterogeneous', btnHeterogeneous));
+    btnHomogeneous.addEventListener('click', () => selectDistribution('homogeneous', btnHomogeneous));
+    
+    // ═══════════════════════════════════════════════════════════════
+    //  VOLET 2 : CRÉER UN NOUVEAU REGROUPEMENT
+    // ═══════════════════════════════════════════════════════════════
+    
+    function createNewRegroupement() {
+      regroupementCounter++;
+      const regroupementId = `regroupement-${regroupementCounter}`;
+      
+      const regroupement = {
+        id: regroupementId,
+        name: `Regroupement ${regroupementCounter}`,
+        classes: [],
+        groupsCount: 3,
+        status: 'draft'
+      };
+      
+      state.regroupements.push(regroupement);
+      
+      renderRegroupementsList();
+      selectRegroupement(regroupementId);
+      updateHeaderContext();
+      
+      console.log(`✅ Regroupement ${regroupementCounter} créé`);
+    }
+    
+    // Afficher la liste des regroupements
+    function renderRegroupementsList() {
+      if (state.regroupements.length === 0) {
+        regroupementsList.innerHTML = `
+          <div class="text-center text-slate-400 py-8">
+            <i class="fas fa-layer-group text-3xl mb-2"></i>
+            <p class="text-xs">Aucun scénario créé</p>
+            <p class="text-xs mt-1">Commencez par créer votre premier regroupement</p>
+          </div>
+        `;
+        return;
+      }
+      
+      regroupementsList.innerHTML = state.regroupements.map((r, index) => {
+        const isActive = r.id === currentRegroupementId;
+        const totalStudents = r.classes.reduce((sum, classId) => {
+          const cls = availableClasses.find(c => c.id === classId);
+          return sum + (cls ? cls.students : 0);
+        }, 0);
+        
+        const statusIcon = r.status === 'draft' ? 'fa-edit' : 'fa-check-circle';
+        const statusColor = r.status === 'draft' ? 'yellow' : 'green';
+        
+        return `
+          <div class="regroupement-item p-3 rounded-lg border-2 ${isActive ? 'border-purple-500 bg-purple-50 shadow-md' : 'border-slate-200 bg-white'} cursor-pointer hover:border-purple-300 hover:shadow-sm transition-all" data-id="${r.id}">
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center gap-2">
+                <span class="flex items-center justify-center w-6 h-6 rounded-full ${isActive ? 'bg-purple-600 text-white' : 'bg-slate-200 text-slate-600'} text-xs font-bold">${index + 1}</span>
+                <span class="font-bold text-sm text-slate-900">${r.name}</span>
+              </div>
+              <i class="fas ${statusIcon} text-${statusColor}-600"></i>
+            </div>
+            <div class="flex items-center gap-3 text-xs text-slate-600 mb-2">
+              <span title="Classes"><i class="fas fa-school mr-1"></i>${r.classes.length}</span>
+              <span title="Élèves"><i class="fas fa-users mr-1"></i>${totalStudents}</span>
+              <span title="Groupes"><i class="fas fa-layer-group mr-1"></i>${r.groupsCount}</span>
+            </div>
+            ${r.classes.length >= 2 ? '<div class="text-xs text-green-600 font-semibold"><i class="fas fa-check mr-1"></i>Prêt à générer</div>' : '<div class="text-xs text-orange-600"><i class="fas fa-exclamation-triangle mr-1"></i>Min. 2 classes requises</div>'}
+          </div>
+        `;
+      }).join('');
+      
+      container.querySelectorAll('.regroupement-item').forEach(item => {
+        item.addEventListener('click', () => {
+          selectRegroupement(item.dataset.id);
+        });
+      });
+      
+      const hasValidRegroupement = state.regroupements.some(r => r.classes.length >= 2);
+      btnGenerateAll.disabled = !hasValidRegroupement;
+      
+      // Mettre à jour le résumé du bouton "Générer tout"
+      const summaryReady = container.querySelector('#summary-ready');
+      const summaryDraft = container.querySelector('#summary-draft');
+      const generateAllSummary = container.querySelector('#generate-all-summary');
+      const generateAllWarning = container.querySelector('#generate-all-warning');
+      
+      if (state.regroupements.length > 0) {
+        const readyCount = state.regroupements.filter(r => r.classes.length >= 2).length;
+        const draftCount = state.regroupements.length - readyCount;
+        
+        if (summaryReady) summaryReady.textContent = readyCount;
+        if (summaryDraft) summaryDraft.textContent = draftCount;
+        if (generateAllSummary) generateAllSummary.classList.remove('hidden');
+        
+        if (generateAllWarning) {
+          if (draftCount > 0) {
+            generateAllWarning.classList.remove('hidden');
+          } else {
+            generateAllWarning.classList.add('hidden');
+          }
+        }
+      } else {
+        if (generateAllSummary) generateAllSummary.classList.add('hidden');
+        if (generateAllWarning) generateAllWarning.classList.add('hidden');
+      }
+    }
+    
+    // Sélectionner un regroupement pour l'éditer
+    function selectRegroupement(regroupementId) {
+      currentRegroupementId = regroupementId;
+      const regroupement = state.regroupements.find(r => r.id === regroupementId);
+      
+      if (!regroupement) return;
+      
+      detailEmpty.classList.add('hidden');
+      detailHeader.classList.remove('hidden');
+      detailForm.classList.remove('hidden');
+      
+      detailTitle.textContent = regroupement.name;
+      
+      detailClassesSelector.innerHTML = availableClasses.map(cls => `
+        <label class="flex items-center gap-2 p-3 bg-white rounded-lg border-2 ${regroupement.classes.includes(cls.id) ? 'border-purple-500 bg-purple-50 ring-2 ring-purple-200' : 'border-slate-200'} hover:border-purple-400 cursor-pointer transition-all">
+          <input type="checkbox" class="class-checkbox w-4 h-4 text-purple-600 rounded" value="${cls.id}" data-students="${cls.students}" ${regroupement.classes.includes(cls.id) ? 'checked' : ''}>
+          <span class="text-sm font-medium text-slate-700">${cls.name}</span>
+          <span class="ml-auto text-xs text-slate-500">${cls.students} él.</span>
+        </label>
+      `).join('');
+      
+      detailGroupsInput.value = regroupement.groupsCount;
+      
+      const checkboxes = detailClassesSelector.querySelectorAll('.class-checkbox');
+      checkboxes.forEach(cb => {
+        cb.addEventListener('change', () => updateCurrentRegroupement());
+      });
+      
+      detailGroupsInput.addEventListener('input', () => updateCurrentRegroupement());
+      
+      updateRegroupementStats();
+      renderRegroupementsList();
+      
+      console.log(`📋 Regroupement sélectionné: ${regroupementId}`);
+    }
+    
+    // Mettre à jour le regroupement actuel
+    function updateCurrentRegroupement() {
+      const regroupement = state.regroupements.find(r => r.id === currentRegroupementId);
+      if (!regroupement) return;
+      
+      const checkboxes = detailClassesSelector.querySelectorAll('.class-checkbox');
+      const selectedClasses = Array.from(checkboxes).filter(cb => cb.checked);
+      
+      regroupement.classes = selectedClasses.map(cb => cb.value);
+      regroupement.groupsCount = parseInt(detailGroupsInput.value);
+      
+      checkboxes.forEach(cb => {
+        const label = cb.closest('label');
+        if (cb.checked) {
+          label.classList.add('bg-purple-50', 'border-purple-500', 'ring-2', 'ring-purple-200');
+          label.classList.remove('border-slate-200');
+        } else {
+          label.classList.remove('bg-purple-50', 'border-purple-500', 'ring-2', 'ring-purple-200');
+          label.classList.add('border-slate-200');
+        }
+      });
+      
+      updateRegroupementStats();
+      renderRegroupementsList();
+    }
+    
+    // Mettre à jour les statistiques du regroupement actuel
+    function updateRegroupementStats() {
+      const regroupement = state.regroupements.find(r => r.id === currentRegroupementId);
+      if (!regroupement) return;
+      
+      const totalStudents = regroupement.classes.reduce((sum, classId) => {
+        const cls = availableClasses.find(c => c.id === classId);
+        return sum + (cls ? cls.students : 0);
+      }, 0);
+      
+      detailClassesCount.textContent = regroupement.classes.length;
+      detailStudentsCount.textContent = totalStudents;
+      detailGroupsCount.textContent = regroupement.groupsCount;
+      
+      // Activer/désactiver le bouton générer
+      const canGenerate = regroupement.classes.length >= 2;
+      btnGenerateCurrent.disabled = !canGenerate;
+      
+      // Afficher l'aperçu si les conditions sont remplies
+      if (canGenerate && regroupement.groupsCount > 0) {
+        detailPreview.classList.remove('hidden');
+        previewGroupsCount.textContent = regroupement.groupsCount;
+        const avgSize = Math.round(totalStudents / regroupement.groupsCount);
+        previewAvgSize.textContent = avgSize;
+        const modeNames = { 'heterogeneous': 'Hétérogène', 'homogeneous': 'Homogène' };
+        previewMode.textContent = state.distributionMode ? modeNames[state.distributionMode] : '-';
+      } else {
+        detailPreview.classList.add('hidden');
+      }
+      
+      // Afficher l'indicateur de sauvegarde automatique
+      detailAutosave.classList.remove('hidden');
+      setTimeout(() => detailAutosave.classList.add('hidden'), 2000);
+      
+      console.log(`📊 Stats: ${regroupement.classes.length} classes, ${totalStudents} élèves, ${regroupement.groupsCount} groupes`);
+    }
+    
+    // Event listeners
+    btnNewRegroupement.addEventListener('click', createNewRegroupement);
+    
+    btnDuplicateCurrent.addEventListener('click', () => {
+      if (!currentRegroupementId) return;
+      
+      const source = state.regroupements.find(r => r.id === currentRegroupementId);
+      if (!source) return;
+      
+      regroupementCounter++;
+      const newId = `regroupement-${regroupementCounter}`;
+      
+      const duplicate = {
+        id: newId,
+        name: `${source.name} (copie)`,
+        classes: [...source.classes],
+        groupsCount: source.groupsCount,
+        status: 'draft'
+      };
+      
+      state.regroupements.push(duplicate);
+      renderRegroupementsList();
+      selectRegroupement(newId);
+      updateHeaderContext();
+      
+      console.log(`📋 Scénario dupliqué: ${newId}`);
+    });
+    
+    btnDeleteCurrent.addEventListener('click', () => {
+      if (!currentRegroupementId) return;
+      
+      const index = state.regroupements.findIndex(r => r.id === currentRegroupementId);
+      if (index > -1) {
+        state.regroupements.splice(index, 1);
+        currentRegroupementId = null;
+        
+        detailEmpty.classList.remove('hidden');
+        detailHeader.classList.add('hidden');
+        detailForm.classList.add('hidden');
+        
+        renderRegroupementsList();
+        updateHeaderContext();
+        
+        console.log(`🗑️ Regroupement supprimé`);
+      }
+    });
+    
+    
+    btnGenerateCurrent.addEventListener('click', async () => {
+      const regroupement = state.regroupements.find(r => r.id === currentRegroupementId);
+      if (!regroupement) {
+        console.error('❌ Aucun regroupement sélectionné');
+        return;
+      }
+      
+      console.log(`🎯 Génération du regroupement:`, regroupement);
+      console.log(`📊 État:`, state);
+      
+      try {
+        // Vérifier que getClassesData existe
+        if (!window.getClassesData) {
+          throw new Error('getClassesData non disponible');
+        }
+        
+        // Récupérer les élèves des classes sélectionnées
+        console.log('📡 Récupération des données élèves...');
+        const allStudents = await window.getClassesData();
+        const selectedStudents = allStudents.filter(s => 
+          regroupement.classes.includes(s.classe)
+        );
+        
+        if (selectedStudents.length === 0) {
+          alert('Aucun élève trouvé dans les classes sélectionnées');
+          return;
+        }
+        
+        // Initialiser l'algorithme
+        if (!window.GroupsAlgorithmV4) {
+          alert('Algorithme de répartition non chargé');
+          return;
+        }
+        
+        const algorithm = new window.GroupsAlgorithmV4();
+        
+        // Consolider les données
+        const consolidated = algorithm.consolidateData(selectedStudents, state.scenario || 'needs');
+        
+        // Normaliser en z-scores
+        const normalized = algorithm.normalizeScores(consolidated, state.scenario || 'needs');
+        
+        // Distribuer selon la stratégie
+        const groups = algorithm.distributeStudents(
+          normalized,
+          regroupement.groupsCount,
+          state.distributionMode || 'heterogeneous'
+        );
+        
+        // Sauvegarder les résultats
+        regroupement.groups = groups;
+        regroupement.status = 'validated';
+        regroupement.generatedAt = new Date().toISOString();
+        
+        renderRegroupementsList();
+        
+        // Afficher le panneau de résultats
+        displayGroupsResults(regroupement);
+        
+        console.log(`✅ Génération terminée: ${groups.length} groupes créés`);
+        
+      } catch (error) {
+        console.error('❌ Erreur lors de la génération:', error);
+        alert(`Erreur: ${error.message}`);
+      }
+    });
+    
+    btnGenerateAll.addEventListener('click', () => {
+      console.log(`🎯 Génération de tous les regroupements:`, state);
+      
+      const summary = state.regroupements.map((r, i) => 
+        `${r.name}: ${r.classes.join(', ')} → ${r.groupsCount} groupes`
+      ).join('\n');
+      
+      alert(`Génération de tous les regroupements...\n\nScénario: ${state.scenario}\nMode: ${state.distributionMode}\n\n${summary}`);
+    });
+    
+    // ═══════════════════════════════════════════════════════════════
+    //  AFFICHAGE DES RÉSULTATS
+    // ═══════════════════════════════════════════════════════════════
+    
+    function displayGroupsResults(regroupement) {
+      console.log('📊 Affichage des résultats pour:', regroupement.name);
+      
+      // Masquer le formulaire d'édition
+      detailForm.classList.add('hidden');
+      
+      // Créer le panneau de résultats
+      const resultsPanel = document.createElement('div');
+      resultsPanel.id = 'results-panel';
+      resultsPanel.className = 'flex-1 overflow-y-auto p-6';
+      
+      // Header des résultats
+      const header = `
+        <div class="mb-6">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-2xl font-bold text-slate-900">${regroupement.name}</h3>
+              <p class="text-sm text-slate-600 mt-1">
+                <i class="fas fa-check-circle text-green-600 mr-1"></i>
+                Généré le ${new Date(regroupement.generatedAt).toLocaleString('fr-FR')}
+              </p>
+            </div>
+            <button id="btn-close-results" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors">
+              <i class="fas fa-arrow-left mr-2"></i>Retour à l'édition
+            </button>
+          </div>
+          
+          <div class="grid grid-cols-4 gap-4">
+            <div class="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
+              <div class="text-blue-600 text-sm mb-1">Groupes créés</div>
+              <div class="text-3xl font-bold text-blue-900">${regroupement.groups.length}</div>
+            </div>
+            <div class="bg-green-50 border-2 border-green-200 rounded-xl p-4">
+              <div class="text-green-600 text-sm mb-1">Total élèves</div>
+              <div class="text-3xl font-bold text-green-900">${regroupement.groups.reduce((sum, g) => sum + g.students.length, 0)}</div>
+            </div>
+            <div class="bg-purple-50 border-2 border-purple-200 rounded-xl p-4">
+              <div class="text-purple-600 text-sm mb-1">Taille moyenne</div>
+              <div class="text-3xl font-bold text-purple-900">${Math.round(regroupement.groups.reduce((sum, g) => sum + g.students.length, 0) / regroupement.groups.length)}</div>
+            </div>
+            <div class="bg-orange-50 border-2 border-orange-200 rounded-xl p-4">
+              <div class="text-orange-600 text-sm mb-1">Mode</div>
+              <div class="text-lg font-bold text-orange-900">${state.distributionMode === 'heterogeneous' ? 'Hétérogène' : 'Homogène'}</div>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      // Colonnes de groupes
+      const groupsColumns = `
+        <div class="grid grid-cols-${Math.min(regroupement.groups.length, 4)} gap-4">
+          ${regroupement.groups.map((group, idx) => `
+            <div class="bg-white border-2 border-slate-200 rounded-xl overflow-hidden">
+              <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4">
+                <h4 class="font-bold text-lg">Groupe ${idx + 1}</h4>
+                <p class="text-sm text-purple-100">${group.students.length} élèves</p>
+              </div>
+              <div class="p-4 space-y-2 max-h-96 overflow-y-auto">
+                ${group.students.map(student => `
+                  <div class="flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-200 hover:border-purple-300 transition-colors">
+                    <div class="flex items-center gap-2">
+                      <span class="w-6 h-6 rounded-full ${student.sexe === 'F' ? 'bg-pink-100 text-pink-600' : 'bg-blue-100 text-blue-600'} flex items-center justify-center text-xs font-bold">
+                        ${student.sexe}
+                      </span>
+                      <span class="text-sm font-medium text-slate-700">${student.prenom} ${student.nom}</span>
+                    </div>
+                    <span class="text-xs text-slate-500">${student.classe}</span>
+                  </div>
+                `).join('')}
+              </div>
+              <div class="p-3 bg-slate-50 border-t border-slate-200 text-xs text-slate-600">
+                <div class="flex items-center justify-between">
+                  <span><i class="fas fa-venus text-pink-600 mr-1"></i>${group.students.filter(s => s.sexe === 'F').length} F</span>
+                  <span><i class="fas fa-mars text-blue-600 mr-1"></i>${group.students.filter(s => s.sexe === 'M').length} M</span>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+      
+      resultsPanel.innerHTML = header + groupsColumns;
+      
+      // Remplacer le contenu du détail
+      const detailContainer = container.querySelector('.flex-1.bg-white.flex.flex-col');
+      const existingResults = detailContainer.querySelector('#results-panel');
+      if (existingResults) {
+        existingResults.remove();
+      }
+      detailContainer.appendChild(resultsPanel);
+      
+      // Event listener pour retour
+      const btnCloseResults = resultsPanel.querySelector('#btn-close-results');
+      btnCloseResults.addEventListener('click', () => {
+        resultsPanel.remove();
+        detailForm.classList.remove('hidden');
+      });
+    }
+    
+    // Initialisation
+    initAvailableClassesList();
+    updateHeaderContext();
+    
+    console.log('✅ Interface V4 - Vue d\'ensemble permanente initialisée');
+  }
+
+  // Exposer la fonction globalement
+  window.createNewInterfaceV4 = createNewInterfaceV4;
+
+  // =======================================================
   // 1.7 GESTION DU MENU COMPARER (DROPDOWN)
   // =======================================================
   (function() {
