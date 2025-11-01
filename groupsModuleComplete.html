@@ -1799,6 +1799,7 @@
           <div class="h-5 w-px bg-slate-300 mx-1"></div>
           <button type="button" class="action-btn-micro bg-slate-100 text-slate-700" data-action="load-temp-groups" title="Load"><i class="fas fa-download"></i></button>
           <button type="button" class="action-btn-micro bg-orange-500 hover:bg-orange-600 text-white" data-action="save-temp-groups" title="Save"><i class="fas fa-save"></i></button>
+          <button type="button" id="toggle-interface-v4-micro" class="action-btn-micro bg-purple-600 hover:bg-purple-700 text-white" title="V4"><i class="fas fa-sparkles"></i></button>
           <button type="button" class="action-btn-micro bg-green-600 hover:bg-green-700 text-white" data-action="finalize-temp-groups" title="Final"><i class="fas fa-check"></i></button>
           <div class="h-5 w-px bg-slate-300 mx-1"></div>
           <button type="button" class="action-btn-micro bg-slate-100 text-slate-700" data-action="export-pdf" title="PDF"><i class="fas fa-file-pdf"></i></button>
@@ -1827,6 +1828,9 @@
               </button>
               <button type="button" class="action-btn-compact bg-orange-500/90 hover:bg-orange-600 text-white" data-action="save-temp-groups" title="Sauver TEMP">
                 <i class="fas fa-save"></i>
+              </button>
+              <button type="button" id="toggle-interface-v4" class="action-btn-compact bg-purple-600 hover:bg-purple-700 text-white" title="Nouvelle Interface V4 (Beta)">
+                <i class="fas fa-sparkles"></i>
               </button>
               <button type="button" class="action-btn-compact bg-green-600 hover:bg-green-700 text-white" data-action="finalize-temp-groups" title="Finaliser">
                 <i class="fas fa-check-circle"></i>
@@ -1885,6 +1889,10 @@
               <button type="button" class="action-btn bg-orange-500/90 hover:bg-orange-600 text-white" data-action="save-temp-groups">
                 <i class="fas fa-save"></i>
                 Sauver TEMP
+              </button>
+              <button type="button" id="toggle-interface-v4-full" class="action-btn bg-purple-600 hover:bg-purple-700 text-white">
+                <i class="fas fa-sparkles"></i>
+                Interface V4
               </button>
               <button type="button" class="action-btn bg-green-600 hover:bg-green-700 text-white" data-action="finalize-temp-groups">
                 <i class="fas fa-check-circle"></i>
@@ -4408,6 +4416,172 @@
   }
 
   console.log('✅ Module Complet de Gestion des Groupes chargé avec succès');
+
+  // ═══════════════════════════════════════════════════════════════
+  //  GESTION DU BOUTON INTERFACE V4
+  // ═══════════════════════════════════════════════════════════════
+
+  // Ajouter un event listener pour le bouton V4
+  documentRef.addEventListener('click', function(e) {
+    const target = e.target.closest('#toggle-interface-v4, #toggle-interface-v4-micro, #toggle-interface-v4-full');
+    if (target) {
+      console.log('🚀 Basculement vers Interface V4');
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Fermer l'ancienne interface
+      const oldModal = documentRef.querySelector('[data-groups-modal="complete"]');
+      if (oldModal) {
+        oldModal.remove();
+      }
+      
+      // Ouvrir la nouvelle interface V4
+      if (windowRef.ModuleGroupsV4) {
+        // L'interface V4 existe déjà, l'afficher
+        const v4Module = documentRef.getElementById('groups-module-v4');
+        if (v4Module) {
+          v4Module.style.display = 'flex';
+        } else {
+          // Créer l'interface V4
+          createInterfaceV4();
+        }
+      } else {
+        console.warn('⚠️ Interface V4 non chargée, création en cours...');
+        createInterfaceV4();
+      }
+    }
+  });
+
+  // Fonction pour créer l'interface V4
+  function createInterfaceV4() {
+    // Créer le conteneur principal
+    const v4Container = documentRef.createElement('div');
+    v4Container.id = 'groups-module-v4';
+    v4Container.className = 'fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/70 px-4';
+    
+    v4Container.innerHTML = `
+      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-[98vw] max-h-[98vh] overflow-hidden flex flex-col">
+        <!-- Header -->
+        <header class="px-8 pt-6 pb-4 border-b border-slate-200 bg-gradient-to-br from-purple-50 via-white to-indigo-50">
+          <div class="flex items-start justify-between gap-6">
+            <div class="flex items-center gap-4">
+              <div class="h-14 w-14 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center text-3xl shadow-lg">
+                ✨
+              </div>
+              <div>
+                <h2 class="text-2xl font-bold text-slate-900">Nouvelle Interface V4 (Beta)</h2>
+                <p class="text-sm text-slate-600 mt-1">Interface refonte avec workflow guidé en 3 phases</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button type="button" id="back-to-old-interface" class="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold">
+                <i class="fas fa-arrow-left mr-2"></i>
+                Ancienne Interface
+              </button>
+              <button type="button" id="close-v4-interface" class="text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-100 rounded-lg">
+                <i class="fas fa-times text-2xl"></i>
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <!-- Contenu V4 -->
+        <div class="flex-1 overflow-hidden flex">
+          <!-- Colonne 1: Phases -->
+          <div class="w-64 border-r border-slate-200 bg-slate-50 p-6">
+            <h3 class="text-sm font-semibold text-slate-700 mb-4">ÉTAPES</h3>
+            <div id="phases-list-v4" class="space-y-2">
+              <!-- Les phases seront ajoutées ici -->
+            </div>
+          </div>
+
+          <!-- Colonne 2: Contenu -->
+          <div class="flex-1 p-8 overflow-y-auto">
+            <div id="content-area-v4">
+              <div class="text-center py-12">
+                <div class="text-6xl mb-4">🚀</div>
+                <h3 class="text-2xl font-bold text-slate-900 mb-2">Interface V4 en cours de développement</h3>
+                <p class="text-slate-600 mb-6">Cette nouvelle interface sera bientôt disponible avec un workflow guidé en 3 phases.</p>
+                <div class="bg-purple-50 border border-purple-200 rounded-lg p-6 max-w-2xl mx-auto text-left">
+                  <h4 class="font-semibold text-purple-900 mb-3">Nouvelles fonctionnalités :</h4>
+                  <ul class="space-y-2 text-sm text-purple-800">
+                    <li class="flex items-start gap-2">
+                      <i class="fas fa-check text-purple-600 mt-0.5"></i>
+                      <span><strong>Phase 1 :</strong> Sélection du scénario pédagogique (Besoins, LV2, Options)</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                      <i class="fas fa-check text-purple-600 mt-0.5"></i>
+                      <span><strong>Phase 2 :</strong> Choix du mode de distribution (Hétérogène/Homogène)</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                      <i class="fas fa-check text-purple-600 mt-0.5"></i>
+                      <span><strong>Phase 3 :</strong> Gestion des associations de classes avec passes multiples</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                      <i class="fas fa-check text-purple-600 mt-0.5"></i>
+                      <span><strong>Algorithme V4 :</strong> Normalisation z-scores, pondérations adaptatives, équilibrage automatique</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                      <i class="fas fa-check text-purple-600 mt-0.5"></i>
+                      <span><strong>Swap Manager :</strong> Historique des ajustements avec undo/redo</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Colonne 3: Récapitulatif -->
+          <div class="w-80 border-l border-slate-200 bg-slate-50 p-6">
+            <h3 class="text-sm font-semibold text-slate-700 mb-4">RÉCAPITULATIF</h3>
+            <div id="summary-panel-v4" class="space-y-4">
+              <div class="bg-white rounded-lg p-4 border border-slate-200">
+                <p class="text-sm text-slate-600">Aucune configuration pour le moment</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="px-8 py-4 border-t border-slate-200 bg-slate-50">
+          <div class="flex items-center justify-between">
+            <button type="button" id="back-to-old-interface-footer" class="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold">
+              <i class="fas fa-arrow-left mr-2"></i>
+              Retour à l'ancienne interface
+            </button>
+            <button type="button" class="px-6 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold" disabled>
+              Continuer
+            </button>
+          </div>
+        </footer>
+      </div>
+    `;
+    
+    documentRef.body.appendChild(v4Container);
+    
+    // Event listeners pour fermer ou revenir
+    documentRef.getElementById('close-v4-interface').addEventListener('click', function() {
+      v4Container.remove();
+    });
+    
+    documentRef.getElementById('back-to-old-interface').addEventListener('click', function() {
+      v4Container.remove();
+      // Réouvrir l'ancienne interface
+      if (windowRef.GroupsModuleComplete) {
+        windowRef.GroupsModuleComplete.open();
+      }
+    });
+    
+    documentRef.getElementById('back-to-old-interface-footer').addEventListener('click', function() {
+      v4Container.remove();
+      // Réouvrir l'ancienne interface
+      if (windowRef.GroupsModuleComplete) {
+        windowRef.GroupsModuleComplete.open();
+      }
+    });
+    
+    console.log('✅ Interface V4 créée');
+  }
 
 })(typeof window !== 'undefined' ? window : this);
 </script>
