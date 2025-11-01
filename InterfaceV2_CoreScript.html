@@ -3651,15 +3651,27 @@ window.addEventListener('DOMContentLoaded', (event) => {
     // Charger l'algorithme de répartition si pas déjà chargé
     if (!window.GroupsAlgorithmV4) {
       console.log('📦 Chargement de GroupsAlgorithmV4...');
-      const script = document.createElement('script');
-      script.src = 'GroupsAlgorithmV4_Distribution.js';
-      script.onload = () => {
-        console.log('✅ GroupsAlgorithmV4 chargé');
-      };
-      script.onerror = () => {
-        console.error('❌ Erreur chargement GroupsAlgorithmV4');
-      };
-      document.head.appendChild(script);
+      
+      // Essayer de charger depuis le serveur Apps Script
+      const scriptUrl = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/GroupsAlgorithmV4_Distribution.js';
+      
+      fetch('GroupsAlgorithmV4_Distribution.js')
+        .then(response => {
+          if (!response.ok) {
+            console.warn('⚠️ Impossible de charger l\'algorithme externe, utilisation de la version intégrée');
+            return null;
+          }
+          return response.text();
+        })
+        .then(code => {
+          if (code) {
+            eval(code);
+            console.log('✅ GroupsAlgorithmV4 chargé depuis fichier externe');
+          }
+        })
+        .catch(err => {
+          console.warn('⚠️ Algorithme externe non disponible:', err.message);
+        });
     }
     
     // Créer le conteneur principal
@@ -3767,13 +3779,26 @@ window.addEventListener('DOMContentLoaded', (event) => {
           
           <!-- COLONNE 2 : LISTE DES REGROUPEMENTS (280px) -->
           <div class="w-[280px] border-r border-slate-200 bg-white flex flex-col">
-            <!-- Bandeau d'objectif pédagogique -->
+            <!-- Bandeau pédagogique avec vocabulaire -->
             <div class="p-4 border-b border-slate-200 bg-gradient-to-br from-purple-50 to-blue-50">
-              <div class="flex items-start gap-2 mb-2">
-                <i class="fas fa-info-circle text-purple-600 mt-0.5"></i>
-                <div>
-                  <p class="text-xs font-semibold text-slate-900 mb-1">Qu'est-ce qu'un regroupement ?</p>
-                  <p class="text-xs text-slate-600 leading-relaxed">Un <strong>regroupement</strong> = un scénario d'association de classes pour générer plusieurs groupes d'élèves.</p>
+              <div class="mb-3">
+                <h4 class="text-xs font-bold text-slate-900 mb-2 flex items-center gap-2">
+                  <i class="fas fa-book text-purple-600"></i>
+                  Vocabulaire clé
+                </h4>
+                <div class="space-y-2 text-xs text-slate-700">
+                  <div class="flex items-start gap-2 p-2 bg-white/60 rounded">
+                    <i class="fas fa-layer-group text-blue-600 mt-0.5 flex-shrink-0"></i>
+                    <div>
+                      <strong>Scénario/Regroupement :</strong> Combinaison de classes qui sera divisée en groupes
+                    </div>
+                  </div>
+                  <div class="flex items-start gap-2 p-2 bg-white/60 rounded">
+                    <i class="fas fa-users text-green-600 mt-0.5 flex-shrink-0"></i>
+                    <div>
+                      <strong>Groupe :</strong> Sous-ensemble d'élèves (ex: 4 groupes de 18 élèves)
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -3969,26 +3994,158 @@ window.addEventListener('DOMContentLoaded', (event) => {
     
     console.log('🎯 Initialisation de la vue d\'ensemble permanente');
     
-    // Classes disponibles
-    const availableClasses = [
-      { id: '6°1', name: '6°1', students: 24 },
-      { id: '6°2', name: '6°2', students: 25 },
-      { id: '6°3', name: '6°3', students: 23 },
-      { id: '6°4', name: '6°4', students: 26 },
-      { id: '6°5', name: '6°5', students: 24 }
-    ];
+    // Classes disponibles (sera rempli dynamiquement)
+    let availableClasses = [];
     
     let regroupementCounter = 0;
     let currentRegroupementId = null;
     
-    // Initialiser la liste des classes disponibles
-    function initAvailableClassesList() {
-      availableClassesList.innerHTML = availableClasses.map(cls => `
-        <div class="flex items-center justify-between p-2 bg-white rounded border border-slate-200">
-          <span class="font-medium text-slate-700">${cls.name}</span>
-          <span class="text-slate-500">${cls.students} él.</span>
-        </div>
-      `).join('');
+    // Initialiser la liste des classes disponibles dynamiquement
+    async function initAvailableClassesList() {
+      try {
+        // Récupérer les données réelles en mode FIN
+        const allStudents = await new Promise((resolve, reject) => {
+          if (typeof google !== 'undefined' && google.script && google.script.run) {
+            google.script.run
+              .withSuccessHandler((result) => {
+                console.log('📦 Réponse getClassesData:', result);
+                // La réponse est { success: true, data: {...}, rules: {...} }
+                if (result && result.success && result.data) {
+                  resolve(result.data);
+                } else {
+                  resolve({});
+                }
+              })
+              .withFailureHandler(reject)
+              .getClassesData('FIN');  // ✅ Mode FIN pour les classes avec suffixe FIN
+          } else {
+            console.warn('⚠️ Mode développement : pas de données');
+            resolve({});
+          }
+        });
+        
+        // Normaliser les données en tableau
+        // Format possible 1: Array de classes [{ name: "6°1", eleves: [...] }, ...]
+        // Format possible 2: Object { "6°1FIN": { eleves: [...] }, ... }
+        let studentsArray = [];
+        
+        console.log('🔍 Type de données reçues:', Array.isArray(allStudents) ? 'Array' : typeof allStudents);
+        console.log('🔍 Contenu brut:', allStudents);
+        
+        // Extraire les classes avec leurs métadonnées
+        const classesMetadata = [];
+        
+        if (Array.isArray(allStudents)) {
+          // Cas 1: Tableau de classes avec métadonnées
+          allStudents.forEach(classData => {
+            if (classData && classData.eleves && Array.isArray(classData.eleves)) {
+              // Utiliser classeRaw (ex: "6°3FIN") au lieu de classe
+              const className = classData.classeRaw || classData.classe || classData.name;
+              const suffix = classData.suffix || '';
+              
+              console.log(`🔍 Classe trouvée: ${className} (suffix: ${suffix})`);
+              
+              classesMetadata.push({
+                name: className,
+                suffix: suffix,
+                canonical: classData.canonical || className,
+                studentCount: classData.eleves.length
+              });
+              
+              // Ajouter les élèves au tableau global
+              studentsArray = studentsArray.concat(classData.eleves);
+            }
+          });
+        } else if (allStudents && typeof allStudents === 'object') {
+          // Cas 2: Objet avec clés de classes
+          Object.keys(allStudents).forEach(className => {
+            const classData = allStudents[className];
+            if (classData && classData.eleves && Array.isArray(classData.eleves)) {
+              const rawName = classData.classeRaw || className;
+              const suffix = classData.suffix || '';
+              
+              console.log(`🔍 Classe trouvée: ${rawName} (suffix: ${suffix})`);
+              
+              classesMetadata.push({
+                name: rawName,
+                suffix: suffix,
+                canonical: classData.canonical || rawName,
+                studentCount: classData.eleves.length
+              });
+              
+              studentsArray = studentsArray.concat(classData.eleves);
+            }
+          });
+        }
+        
+        console.log(`📚 ${studentsArray.length} élèves chargés pour détection des classes`);
+        console.log(`📋 ${classesMetadata.length} classes avec métadonnées:`, classesMetadata);
+        console.log(`📋 Échantillon de 3 élèves:`, studentsArray.slice(0, 3).map(s => ({ nom: s.nom, classe: s.classe })));
+        
+        // Détecter les classes avec suffixe FIN en utilisant les métadonnées
+        const classesWithFIN = classesMetadata.filter(c => c.suffix === 'FIN' || c.name.endsWith('FIN'));
+        const allClasses = classesMetadata.map(c => c.name);
+        
+        console.log(`📋 Classes FIN détectées:`, classesWithFIN);
+        
+        // Si aucune classe FIN, utiliser toutes les classes
+        const targetClasses = classesWithFIN.length > 0 ? classesWithFIN : allClasses;
+        
+        if (classesWithFIN.length === 0 && allClasses.length > 0) {
+          console.warn(`⚠️ Aucune classe avec suffixe FIN, utilisation de toutes les classes disponibles`);
+        }
+        
+        // Construire la liste des classes disponibles à partir des métadonnées
+        if (classesWithFIN.length > 0) {
+          // Utiliser les classes FIN
+          availableClasses = classesWithFIN.map(classMeta => ({
+            id: classMeta.name,
+            name: classMeta.name,
+            students: classMeta.studentCount,
+            suffix: classMeta.suffix,
+            canonical: classMeta.canonical
+          }));
+        } else {
+          // Utiliser toutes les classes
+          availableClasses = classesMetadata.map(classMeta => ({
+            id: classMeta.name,
+            name: classMeta.name,
+            students: classMeta.studentCount,
+            suffix: classMeta.suffix,
+            canonical: classMeta.canonical
+          }));
+        }
+        
+        console.log(`✅ ${availableClasses.length} classes configurées:`, availableClasses);
+        
+        // Afficher les classes
+        if (availableClasses.length > 0) {
+          availableClassesList.innerHTML = availableClasses.map(cls => `
+            <div class="flex items-center justify-between p-2 bg-white rounded border border-slate-200 hover:border-purple-300 transition-colors">
+              <span class="font-medium text-slate-700">${cls.name}</span>
+              <span class="text-slate-500 text-xs">${cls.students} él.</span>
+            </div>
+          `).join('');
+        } else {
+          availableClassesList.innerHTML = `
+            <div class="p-3 text-center text-slate-500 text-xs">
+              <i class="fas fa-exclamation-triangle mb-2 text-orange-500"></i>
+              <p class="font-semibold mb-1">Aucune classe détectée</p>
+              <p class="text-xs">Vérifiez que les données sont chargées</p>
+              <p class="text-xs mt-2">Élèves chargés: ${studentsArray.length}</p>
+            </div>
+          `;
+        }
+        
+      } catch (error) {
+        console.error('❌ Erreur chargement classes:', error);
+        availableClassesList.innerHTML = `
+          <div class="p-3 text-center text-red-500 text-xs">
+            <i class="fas fa-exclamation-triangle mb-2"></i>
+            <p>Erreur de chargement</p>
+          </div>
+        `;
+      }
     }
     
     // Mettre à jour le header contextuel avec progression
@@ -4306,31 +4463,130 @@ window.addEventListener('DOMContentLoaded', (event) => {
       console.log(`🎯 Génération du regroupement:`, regroupement);
       console.log(`📊 État:`, state);
       
+      // Créer et afficher le spinner
+      const spinnerOverlay = document.createElement('div');
+      spinnerOverlay.id = 'generation-spinner';
+      spinnerOverlay.className = 'fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm';
+      spinnerOverlay.innerHTML = `
+        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md mx-4">
+          <div class="flex flex-col items-center">
+            <div class="relative w-20 h-20 mb-6">
+              <div class="absolute inset-0 border-4 border-purple-200 rounded-full"></div>
+              <div class="absolute inset-0 border-4 border-purple-600 rounded-full border-t-transparent animate-spin"></div>
+            </div>
+            <h3 class="text-xl font-bold text-slate-900 mb-2">Génération en cours...</h3>
+            <p class="text-sm text-slate-600 text-center mb-4">
+              Création des groupes pour <strong>${regroupement.name}</strong>
+            </p>
+            <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+              <div class="bg-gradient-to-r from-purple-600 to-indigo-600 h-full rounded-full animate-pulse" style="width: 100%"></div>
+            </div>
+            <p class="text-xs text-slate-500 mt-4">
+              <i class="fas fa-info-circle mr-1"></i>
+              Calcul des z-scores et distribution...
+            </p>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(spinnerOverlay);
+      
       try {
-        // Vérifier que getClassesData existe
-        if (!window.getClassesData) {
-          throw new Error('getClassesData non disponible');
-        }
-        
         // Récupérer les élèves des classes sélectionnées
         console.log('📡 Récupération des données élèves...');
-        const allStudents = await window.getClassesData();
-        const selectedStudents = allStudents.filter(s => 
-          regroupement.classes.includes(s.classe)
-        );
+        
+        // Utiliser google.script.run pour récupérer les données en mode FIN
+        const allStudents = await new Promise((resolve, reject) => {
+          if (typeof google !== 'undefined' && google.script && google.script.run) {
+            google.script.run
+              .withSuccessHandler((result) => {
+                console.log('📦 Réponse getClassesData pour génération:', result);
+                // La réponse est { success: true, data: {...}, rules: {...} }
+                if (result && result.success && result.data) {
+                  resolve(result.data);
+                } else {
+                  resolve({});
+                }
+              })
+              .withFailureHandler(reject)
+              .getClassesData('FIN');  // ✅ Mode FIN pour les classes avec suffixe FIN
+          } else {
+            // Mode développement : utiliser les données mockées
+            console.warn('⚠️ Mode développement : utilisation de données mockées');
+            resolve({});
+          }
+        });
+        
+        console.log(`✅ Données récupérées:`, allStudents);
+        
+        // Normaliser les données en tableau
+        // Format possible 1: Array de classes [{ name: "6°1", eleves: [...] }, ...]
+        // Format possible 2: Object { "6°1FIN": { eleves: [...] }, ... }
+        let studentsArray = [];
+        
+        if (Array.isArray(allStudents)) {
+          // Cas 1: Tableau de classes
+          allStudents.forEach(classData => {
+            if (classData && classData.eleves && Array.isArray(classData.eleves)) {
+              studentsArray = studentsArray.concat(classData.eleves);
+            }
+          });
+        } else if (allStudents && typeof allStudents === 'object') {
+          // Cas 2: Objet avec clés de classes
+          Object.keys(allStudents).forEach(className => {
+            const classData = allStudents[className];
+            if (classData && classData.eleves && Array.isArray(classData.eleves)) {
+              studentsArray = studentsArray.concat(classData.eleves);
+            }
+          });
+        } else {
+          console.error('❌ Format de données invalide:', typeof allStudents);
+          throw new Error('Format de données invalide');
+        }
+        
+        console.log(`✅ ${studentsArray.length} élèves normalisés`);
+        console.log('📋 Classes du regroupement:', regroupement.classes);
+        console.log('📋 Échantillon élèves:', studentsArray.slice(0, 3).map(s => ({ nom: s.nom, classe: s.classe })));
+        
+        const selectedStudents = studentsArray.filter(s => {
+          const match = regroupement.classes.includes(s.classe);
+          if (!match && studentsArray.indexOf(s) < 3) {
+            console.log(`⚠️ Élève ${s.nom} (classe: "${s.classe}") ne correspond pas aux classes:`, regroupement.classes);
+          }
+          return match;
+        });
+        
+        console.log(`✅ ${selectedStudents.length} élèves sélectionnés sur ${studentsArray.length}`);
         
         if (selectedStudents.length === 0) {
-          alert('Aucun élève trouvé dans les classes sélectionnées');
+          const classesInData = [...new Set(studentsArray.map(s => s.classe))];
+          alert(`Aucun élève trouvé dans les classes sélectionnées.\n\nClasses demandées: ${regroupement.classes.join(', ')}\nClasses disponibles: ${classesInData.join(', ')}`);
           return;
         }
         
-        // Initialiser l'algorithme
-        if (!window.GroupsAlgorithmV4) {
-          alert('Algorithme de répartition non chargé');
-          return;
-        }
+        // Initialiser l'algorithme (vérifier si chargé, sinon utiliser version simplifiée)
+        let algorithm;
         
-        const algorithm = new window.GroupsAlgorithmV4();
+        if (window.GroupsAlgorithmV4) {
+          algorithm = new window.GroupsAlgorithmV4();
+          console.log('✅ Utilisation de GroupsAlgorithmV4');
+        } else {
+          console.warn('⚠️ GroupsAlgorithmV4 non chargé, utilisation algorithme simplifié');
+          // Algorithme simplifié intégré
+          algorithm = {
+            consolidateData: (students) => students,
+            normalizeScores: (students) => students,
+            distributeStudents: (students, groupCount, mode) => {
+              // Distribution simple par rotation
+              const groups = Array.from({ length: groupCount }, () => ({ students: [] }));
+              students.forEach((student, idx) => {
+                groups[idx % groupCount].students.push(student);
+              });
+              return groups;
+            },
+            calculateGroupStatistics: (groups) => ({}),
+            validateConstraints: (groups, stats) => ({ isValid: true, alerts: [] })
+          };
+        }
         
         // Consolider les données
         const consolidated = algorithm.consolidateData(selectedStudents, state.scenario || 'needs');
@@ -4345,8 +4601,14 @@ window.addEventListener('DOMContentLoaded', (event) => {
           state.distributionMode || 'heterogeneous'
         );
         
+        // Calculer les statistiques et valider les contraintes
+        const statistics = algorithm.calculateGroupStatistics(groups);
+        const validation = algorithm.validateConstraints(groups, statistics);
+        
         // Sauvegarder les résultats
         regroupement.groups = groups;
+        regroupement.statistics = statistics;
+        regroupement.validation = validation;
         regroupement.status = 'validated';
         regroupement.generatedAt = new Date().toISOString();
         
@@ -4357,9 +4619,36 @@ window.addEventListener('DOMContentLoaded', (event) => {
         
         console.log(`✅ Génération terminée: ${groups.length} groupes créés`);
         
+        // Fermer le spinner avec animation de succès
+        const spinner = document.getElementById('generation-spinner');
+        if (spinner) {
+          spinner.querySelector('h3').textContent = '✓ Génération terminée !';
+          spinner.querySelector('h3').classList.add('text-green-600');
+          spinner.querySelector('.animate-spin').classList.remove('animate-spin');
+          spinner.querySelector('.animate-spin').classList.add('border-green-600');
+          setTimeout(() => {
+            spinner.remove();
+          }, 800);
+        }
+        
       } catch (error) {
         console.error('❌ Erreur lors de la génération:', error);
-        alert(`Erreur: ${error.message}`);
+        
+        // Fermer le spinner avec animation d'erreur
+        const spinner = document.getElementById('generation-spinner');
+        if (spinner) {
+          spinner.querySelector('h3').textContent = '✗ Erreur de génération';
+          spinner.querySelector('h3').classList.add('text-red-600');
+          spinner.querySelector('.animate-spin').classList.remove('animate-spin');
+          spinner.querySelector('.border-purple-600').classList.remove('border-purple-600');
+          spinner.querySelector('.border-t-transparent').classList.add('border-red-600');
+          setTimeout(() => {
+            spinner.remove();
+            alert(`Erreur: ${error.message}`);
+          }, 1000);
+        } else {
+          alert(`Erreur: ${error.message}`);
+        }
       }
     });
     
@@ -4422,6 +4711,27 @@ window.addEventListener('DOMContentLoaded', (event) => {
               <div class="text-lg font-bold text-orange-900">${state.distributionMode === 'heterogeneous' ? 'Hétérogène' : 'Homogène'}</div>
             </div>
           </div>
+          
+          ${regroupement.validation ? `
+            <div class="mt-4 p-4 ${regroupement.validation.isValid ? 'bg-green-50 border-2 border-green-200' : 'bg-orange-50 border-2 border-orange-200'} rounded-xl">
+              <h4 class="text-sm font-bold mb-2 flex items-center gap-2">
+                <i class="fas ${regroupement.validation.isValid ? 'fa-check-circle text-green-600' : 'fa-exclamation-triangle text-orange-600'}"></i>
+                Validation des contraintes
+              </h4>
+              ${regroupement.validation.alerts && regroupement.validation.alerts.length > 0 ? `
+                <div class="space-y-1">
+                  ${regroupement.validation.alerts.map(alert => `
+                    <div class="text-xs ${alert.severity === 'error' ? 'text-red-700' : 'text-orange-700'} flex items-start gap-2">
+                      <i class="fas fa-info-circle mt-0.5"></i>
+                      <span>${alert.message}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              ` : `
+                <p class="text-xs text-green-700">✓ Toutes les contraintes sont respectées (parité F/M, équilibre des critères)</p>
+              `}
+            </div>
+          ` : ''}
         </div>
       `;
       

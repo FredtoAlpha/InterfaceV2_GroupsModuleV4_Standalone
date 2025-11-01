@@ -59,16 +59,53 @@
     }
 
     /**
+     * Étape 0 : Normalisation de l'entrée (tableau, objet, Map, etc.)
+     */
+    normalizeStudentInput(input) {
+      console.log('🔄 Normalisation de l\'entrée élèves...');
+      
+      // Si c'est déjà un tableau, le retourner
+      if (Array.isArray(input)) {
+        return input;
+      }
+      
+      // Si c'est un objet, extraire les valeurs
+      if (input && typeof input === 'object') {
+        // Cas Map
+        if (input instanceof Map) {
+          return Array.from(input.values());
+        }
+        // Cas NodeList ou HTMLCollection
+        if (input.length !== undefined) {
+          return Array.from(input);
+        }
+        // Cas objet simple
+        return Object.values(input);
+      }
+      
+      console.warn('⚠️ Format d\'entrée non reconnu, retour tableau vide');
+      return [];
+    }
+
+    /**
      * Étape 1 : Consolidation et validation des données d'entrée
      */
     consolidateData(students, scenario) {
       console.log(`📊 Consolidation des données pour scénario: ${scenario}`);
       
+      // Normaliser l'entrée
+      const studentsArray = this.normalizeStudentInput(students);
+      
+      if (studentsArray.length === 0) {
+        console.warn('⚠️ Aucun élève exploitable détecté');
+        return [];
+      }
+      
       const consolidated = [];
       const requiredFields = ['id', 'nom', 'prenom', 'sexe', 'scoreM', 'scoreF'];
       const optionalFields = ['com', 'tra', 'part', 'abs', 'lv2', 'opt', 'classe'];
 
-      students.forEach((student, idx) => {
+      studentsArray.forEach((student, idx) => {
         // Valider les champs requis
         const missing = requiredFields.filter(f => !(f in student));
         if (missing.length > 0) {
@@ -502,10 +539,10 @@
     module.exports = GroupsAlgorithmV4;
   }
 
-})(typeof window !== 'undefined' 
-  ? window 
-  : typeof global !== 'undefined' 
-    ? global 
-    : typeof globalThis !== 'undefined'
-      ? globalThis
+})(typeof globalThis !== 'undefined'
+  ? globalThis
+  : typeof window !== 'undefined' 
+    ? window 
+    : typeof global !== 'undefined' 
+      ? global 
       : {});
