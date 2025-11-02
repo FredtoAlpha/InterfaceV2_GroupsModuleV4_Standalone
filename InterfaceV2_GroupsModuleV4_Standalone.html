@@ -543,5 +543,97 @@
   </div>
 
   <script src="InterfaceV2_GroupsModuleV4_Script.js"></script>
+
+  <!-- ✅ FIX #2 : Charger le triptyque -->
+  <script src="InterfaceV4_Triptyque_Logic.js"></script>
+
+  <script>
+    // ✅ Initialiser le triptyque si l'élément existe
+    (function() {
+      function initTriptych() {
+        const root = document.querySelector('#groups-module-v4');
+        if (root && typeof window.TriptychGroupsModule === 'function') {
+          // ✅ Créer l'instance triptyque
+          window.__triptychModuleInstance = new window.TriptychGroupsModule(root);
+          console.log('✅ Triptyque initialisé avec succès');
+
+          // ✅ Masquer le vieux bouton "Nouvelle association"
+          const oldButton = document.getElementById('new-association-button');
+          if (oldButton) {
+            oldButton.style.display = 'none';
+            console.log('✅ Ancien bouton "Nouvelle association" masqué');
+          }
+
+          // ✅ Attacher le gestionnaire d'événement pour la génération
+          if (!root.hasAttribute('data-triptyque-listeners-attached')) {
+            root.addEventListener('groups:generate', function handleGroupsGenerate(event) {
+              const payload = event.detail;
+              console.log('🎯 Événement groups:generate reçu:', payload);
+
+              if (!window.GroupsAlgorithmV4) {
+                console.error('❌ GroupsAlgorithmV4 non disponible');
+                return;
+              }
+
+              if (!window.STATE || !window.STATE.classesData) {
+                console.error('❌ Données élèves non disponibles');
+                return;
+              }
+
+              const algo = new window.GroupsAlgorithmV4();
+              const results = [];
+
+              payload.forEach((regroupement) => {
+                const students = [];
+                regroupement.classes.forEach((className) => {
+                  const classData = window.STATE.classesData[className];
+                  if (classData && classData.eleves) {
+                    students.push(...classData.eleves);
+                  }
+                });
+
+                if (students.length === 0) {
+                  console.warn(`⚠️ Aucun élève trouvé pour ${regroupement.name}`);
+                  return;
+                }
+
+                const result = algo.generateGroups({
+                  students,
+                  groupCount: regroupement.groupCount,
+                  scenario: window.__triptychModuleInstance?.state?.scenario || 'needs',
+                  distributionMode: window.__triptychModuleInstance?.state?.distributionMode || 'heterogeneous'
+                });
+
+                results.push({
+                  regroupement: regroupement.name,
+                  result
+                });
+              });
+
+              console.log('✅ Génération terminée:', results);
+              const resultsEvent = new CustomEvent('groups:generated', { detail: results });
+              document.dispatchEvent(resultsEvent);
+            });
+
+            root.setAttribute('data-triptyque-listeners-attached', 'true');
+            console.log('✅ Gestionnaire groups:generate attaché');
+          }
+        } else {
+          if (!root) {
+            console.warn('⚠️ Élément #groups-module-v4 introuvable');
+          }
+          if (typeof window.TriptychGroupsModule !== 'function') {
+            console.warn('⚠️ TriptychGroupsModule non chargé');
+          }
+        }
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initTriptych);
+      } else {
+        initTriptych();
+      }
+    })();
+  </script>
 </body>
 </html>

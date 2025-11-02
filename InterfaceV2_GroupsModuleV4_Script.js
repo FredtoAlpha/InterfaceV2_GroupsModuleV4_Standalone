@@ -629,14 +629,24 @@
       if (typeof google !== 'undefined' && google.script && google.script.run) {
         console.log('📡 Chargement des classes depuis Apps Script...');
         google.script.run
-          .withSuccessHandler((classesData) => {
-            console.log('✅ Classes reçues:', classesData);
+          .withSuccessHandler((result) => {
+            console.log('✅ Résultat reçu de getClassesData():', result);
+
+            // ✅ FIX #1 : Adapter au format retourné { success, data, rules }
+            const classesData = result.data || result;
+
             if (classesData && typeof classesData === 'object') {
               // Extraire les noms de classes depuis l'objet classesData
               const classNames = Object.keys(classesData);
               this.state.loadedClasses = classNames;
               this.state.classesData = classesData; // Stocker les données complètes
-              console.log(`✅ ${classNames.length} classes chargées`);
+
+              // Validation des élèves
+              let totalStudents = 0;
+              Object.values(classesData).forEach(cls => {
+                if (cls && cls.eleves) totalStudents += cls.eleves.length;
+              });
+              console.log(`✅ ${classNames.length} classes chargées (${totalStudents} élèves, propriété 'classe' présente)`);
               this.render();
             }
           })
