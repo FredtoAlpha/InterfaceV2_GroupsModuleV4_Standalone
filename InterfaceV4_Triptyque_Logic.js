@@ -612,18 +612,83 @@
   // Exposer globalement
   windowRef.TriptychGroupsModule = TriptychGroupsModule;
 
+  // Gestionnaire d'événement pour la génération
+  function handleGroupsGenerate(event) {
+    const payload = event.detail;
+    console.log('🎯 Événement groups:generate reçu:', payload);
+    
+    // Vérifier si l'algorithme est disponible
+    if (!windowRef.GroupsAlgorithmV4) {
+      console.error('❌ GroupsAlgorithmV4 non disponible');
+      alert('Erreur : L\'algorithme de génération n\'est pas chargé.');
+      return;
+    }
+    
+    // Vérifier si les données élèves sont disponibles
+    if (!windowRef.STATE || !windowRef.STATE.classesData) {
+      console.error('❌ Données élèves non disponibles');
+      alert('Erreur : Les données élèves ne sont pas chargées.');
+      return;
+    }
+    
+    // Générer les groupes pour chaque regroupement
+    const algo = new windowRef.GroupsAlgorithmV4();
+    const results = [];
+    
+    payload.forEach((regroupement) => {
+      console.log(`🔄 Génération pour ${regroupement.name}...`);
+      
+      // Récupérer les élèves des classes sélectionnées
+      const students = [];
+      regroupement.classes.forEach((className) => {
+        const classData = windowRef.STATE.classesData[className];
+        if (classData && classData.eleves) {
+          students.push(...classData.eleves);
+        }
+      });
+      
+      if (students.length === 0) {
+        console.warn(`⚠️ Aucun élève trouvé pour ${regroupement.name}`);
+        return;
+      }
+      
+      // Appeler l'algorithme
+      const result = algo.generateGroups({
+        students,
+        groupCount: regroupement.groupCount,
+        scenario: windowRef.__triptychModuleInstance?.state.scenario || 'needs',
+        distributionMode: windowRef.__triptychModuleInstance?.state.distributionMode || 'heterogeneous'
+      });
+      
+      results.push({
+        regroupement: regroupement.name,
+        result
+      });
+    });
+    
+    console.log('✅ Génération terminée:', results);
+    
+    // Déclencher un événement avec les résultats
+    const resultsEvent = new CustomEvent('groups:generated', { detail: results });
+    documentRef.dispatchEvent(resultsEvent);
+  }
+  
   // Auto-initialisation si l'élément existe
   if (documentRef.readyState === 'loading') {
     documentRef.addEventListener('DOMContentLoaded', () => {
       const root = documentRef.querySelector('#groups-module-v4');
       if (root && !windowRef.__triptychModuleInstance) {
         windowRef.__triptychModuleInstance = new TriptychGroupsModule(root);
+        // Attacher le gestionnaire d'événement
+        root.addEventListener('groups:generate', handleGroupsGenerate);
       }
     });
   } else {
     const root = documentRef.querySelector('#groups-module-v4');
     if (root && !windowRef.__triptychModuleInstance) {
       windowRef.__triptychModuleInstance = new TriptychGroupsModule(root);
+      // Attacher le gestionnaire d'événement
+      root.addEventListener('groups:generate', handleGroupsGenerate);
     }
   }
 

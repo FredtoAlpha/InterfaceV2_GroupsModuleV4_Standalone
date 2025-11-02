@@ -594,22 +594,49 @@
     }
 
     loadClassesFromBackend() {
-      // Essayer de charger les classes du backend
+      // Essayer de charger les classes du backend via getClassesData()
       if (typeof google !== 'undefined' && google.script && google.script.run) {
-        google.script.run.withSuccessHandler((classes) => {
-          if (classes && Array.isArray(classes)) {
-            this.state.loadedClasses = classes;
-            this.render();
-          }
-        }).withFailureHandler((error) => {
-          console.warn('⚠️ Impossible de charger les classes du backend:', error);
-          // Utiliser des classes par défaut
-          this.state.loadedClasses = ['6°1', '6°2', '5°1', '5°2', '4°1', '4°2'];
-          this.render();
-        }).getAvailableClasses();
+        console.log('📡 Chargement des classes depuis Apps Script...');
+        google.script.run
+          .withSuccessHandler((classesData) => {
+            console.log('✅ Classes reçues:', classesData);
+            if (classesData && typeof classesData === 'object') {
+              // Extraire les noms de classes depuis l'objet classesData
+              const classNames = Object.keys(classesData);
+              this.state.loadedClasses = classNames;
+              this.state.classesData = classesData; // Stocker les données complètes
+              console.log(`✅ ${classNames.length} classes chargées`);
+              this.render();
+            }
+          })
+          .withFailureHandler((error) => {
+            console.error('❌ Erreur chargement classes:', error);
+            // Fallback : essayer window.STATE
+            if (windowRef.STATE && windowRef.STATE.classesData) {
+              const classNames = Object.keys(windowRef.STATE.classesData);
+              this.state.loadedClasses = classNames;
+              this.state.classesData = windowRef.STATE.classesData;
+              console.log(`✅ ${classNames.length} classes chargées depuis window.STATE`);
+              this.render();
+            } else {
+              console.warn('⚠️ Utilisation des classes par défaut');
+              this.state.loadedClasses = ['6°1', '6°2', '5°1', '5°2', '4°1', '4°2'];
+              this.render();
+            }
+          })
+          .getClassesData(); // ✅ Utiliser la vraie fonction
       } else {
-        // Environnement de test : utiliser des classes par défaut
-        this.state.loadedClasses = ['6°1', '6°2', '5°1', '5°2', '4°1', '4°2'];
+        // Environnement de test : essayer window.STATE d'abord
+        console.log('🧪 Mode test : chargement depuis window.STATE');
+        if (windowRef.STATE && windowRef.STATE.classesData) {
+          const classNames = Object.keys(windowRef.STATE.classesData);
+          this.state.loadedClasses = classNames;
+          this.state.classesData = windowRef.STATE.classesData;
+          console.log(`✅ ${classNames.length} classes chargées depuis window.STATE`);
+        } else {
+          console.warn('⚠️ Utilisation des classes par défaut');
+          this.state.loadedClasses = ['6°1', '6°2', '5°1', '5°2', '4°1', '4°2'];
+        }
       }
     }
 
