@@ -6,18 +6,18 @@
  * Phases : 1) Scénario 2) Mode distribution 3) Associations classes
  */
 
-(function(global) {
+(function() {
   'use strict';
 
-  // Détection robuste de l'objet global
-  const windowRef = typeof window !== 'undefined' 
-    ? window 
-    : typeof global !== 'undefined' 
-      ? global 
-      : typeof globalThis !== 'undefined'
-        ? globalThis
+  // Détection robuste de l'objet global (sans dépendance à 'global')
+  const windowRef = typeof globalThis !== 'undefined'
+    ? globalThis
+    : typeof window !== 'undefined' 
+      ? window 
+      : typeof self !== 'undefined'
+        ? self
         : {};
-  const documentRef = windowRef?.document;
+  const documentRef = windowRef.document;
 
   if (!windowRef || !documentRef) {
     console.log('❌ ModuleGroupsV4: environnement navigateur non détecté');
@@ -773,10 +773,4 @@
     windowRef.ModuleGroupsV4 = new ModuleGroupsV4();
   }
 
-})(typeof window !== 'undefined' 
-  ? window 
-  : typeof global !== 'undefined' 
-    ? global 
-    : typeof globalThis !== 'undefined'
-      ? globalThis
-      : {});
+})(); // Pas de paramètre global

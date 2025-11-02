@@ -9,16 +9,16 @@
  * 5. Historique d'ajustements (swaps)
  */
 
-(function(global) {
+(function() {
   'use strict';
 
-  // Détection robuste de l'objet global
-  const windowRef = typeof window !== 'undefined' 
-    ? window 
-    : typeof global !== 'undefined' 
-      ? global 
-      : typeof globalThis !== 'undefined'
-        ? globalThis
+  // Détection robuste de l'objet global (sans dépendance à 'global')
+  const windowRef = typeof globalThis !== 'undefined'
+    ? globalThis
+    : typeof window !== 'undefined' 
+      ? window 
+      : typeof self !== 'undefined'
+        ? self
         : {};
 
   class GroupsAlgorithmV4 {
@@ -539,10 +539,4 @@
     module.exports = GroupsAlgorithmV4;
   }
 
-})(typeof globalThis !== 'undefined'
-  ? globalThis
-  : typeof window !== 'undefined' 
-    ? window 
-    : typeof global !== 'undefined' 
-      ? global 
-      : {});
+})(); // Pas de paramètre global
