@@ -554,18 +554,47 @@
       this.state.isLoading = true;
       this.render();
 
-      // Préparer le payload
+      // ✅ Récupérer les élèves depuis classesData
+      const allStudents = [];
+      if (this.state.classesData) {
+        Object.keys(this.state.classesData).forEach((className) => {
+          const classData = this.state.classesData[className];
+          if (classData && classData.eleves) {
+            allStudents.push(...classData.eleves);
+          }
+        });
+      }
+
+      if (allStudents.length === 0) {
+        this.state.error = 'Aucun élève trouvé. Veuillez charger les données.';
+        console.error('❌ Aucun élève disponible');
+        this.state.isLoading = false;
+        this.render();
+        return;
+      }
+
+      console.log(`📊 ${allStudents.length} élèves chargés pour la génération`);
+
+      // Préparer le payload avec les VRAIS élèves
       const payload = {
-        students: this.state.loadedClasses,
+        students: allStudents, // ✅ Élèves complets avec scores
         scenario: this.state.scenario,
         distributionMode: this.state.distributionMode,
-        associations: this.state.associations
+        associations: this.state.associations,
+        groupCount: this.state.associations.length || 3 // Nombre de groupes
       };
 
       // Appeler l'algorithme
-      if (window.GroupsAlgorithmV4) {
+      if (windowRef.GroupsAlgorithmV4) {
         try {
-          const algorithm = new window.GroupsAlgorithmV4();
+          const algorithm = new windowRef.GroupsAlgorithmV4();
+          console.log('🔄 Appel de l\'algorithme avec:', {
+            students: payload.students.length,
+            scenario: payload.scenario,
+            mode: payload.distributionMode,
+            groupCount: payload.groupCount
+          });
+          
           const result = algorithm.generateGroups(payload);
 
           if (result.success) {
@@ -575,6 +604,7 @@
             this.state.currentPhase = 4; // Phase 4 : Affichage
             console.log('✅ Génération réussie');
             console.log('Groupes générés:', this.state.generatedGroups);
+            console.log('Statistiques:', this.state.statistics);
             console.log('Alertes:', this.state.alerts);
           } else {
             this.state.error = result.error || 'Erreur inconnue';
@@ -583,10 +613,11 @@
         } catch (error) {
           this.state.error = error.message;
           console.error('❌ Exception:', error);
+          console.error(error.stack);
         }
       } else {
         this.state.error = 'Algorithme non disponible';
-        console.error('❌ GroupsAlgorithmV4 non trouvé');
+        console.error('❌ GroupsAlgorithmV4 non trouvé dans window');
       }
 
       this.state.isLoading = false;

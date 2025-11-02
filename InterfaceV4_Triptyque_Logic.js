@@ -490,7 +490,7 @@
     }
 
     /**
-     * Rend les statistiques
+     * Rend les statistiques RÉELLES (effectifs, parité)
      */
     renderStats() {
       if (!this.dom.statsContainer) {
@@ -500,6 +500,30 @@
       const totalClasses = this.state.regroupements.reduce((acc, reg) => acc + reg.classes.length, 0);
       const uniqueClasses = new Set(this.state.regroupements.flatMap((reg) => reg.classes));
       const totalRegroupements = this.state.regroupements.length;
+
+      // ✅ Calculer les effectifs RÉELS depuis window.STATE.classesData
+      let totalStudents = 0;
+      let totalGirls = 0;
+      let totalBoys = 0;
+
+      if (windowRef.STATE && windowRef.STATE.classesData) {
+        this.state.regroupements.forEach((reg) => {
+          reg.classes.forEach((className) => {
+            const classData = windowRef.STATE.classesData[className];
+            if (classData && classData.eleves) {
+              classData.eleves.forEach((eleve) => {
+                totalStudents++;
+                if (eleve.sexe === 'F') totalGirls++;
+                if (eleve.sexe === 'M') totalBoys++;
+              });
+            }
+          });
+        });
+      }
+
+      const parityPercent = totalStudents > 0 
+        ? Math.round((Math.min(totalGirls, totalBoys) / totalStudents) * 100)
+        : 0;
 
       this.dom.statsContainer.innerHTML = `
         <div class="stat-card">
@@ -511,8 +535,12 @@
           <span class="stat-card__value">${uniqueClasses.size}</span>
         </div>
         <div class="stat-card">
-          <span class="stat-card__label">Sélections totales</span>
-          <span class="stat-card__value">${totalClasses}</span>
+          <span class="stat-card__label">Élèves concernés</span>
+          <span class="stat-card__value">${totalStudents}</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-card__label">Parité F/M</span>
+          <span class="stat-card__value">${totalGirls}F / ${totalBoys}M (${parityPercent}%)</span>
         </div>
       `;
     }
