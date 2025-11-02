@@ -1,4 +1,30 @@
 <script>
+// ═══════════════════════════════════════════════════════════════════════════════
+// ⚠️ ATTENTION : CoreScript.html GELÉ (ORDRE 11)
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// 🔒 RÉGLES DE GEL (Module Groupes V4 - V4 100% Indépendant)
+//
+// ✅ CE QUI EST PERMIS :
+//    - Bootstrap seulement (menus, initialization)
+//    - Injection GROUPS_MODULE_V4_DATA dans loadDataForMode()
+//    - Appels vers window.ModuleGroupsV4 (loader externe)
+//
+// ❌ CE QUI EST INTERDIT (sinon duplication) :
+//    - Aucune logique V4 métier
+//    - Aucune création d'interface triptyque
+//    - Aucune classe TriptychGroupsModule
+//    - Aucune instance ModuleGroupsV4 = new ...()
+//
+// 📚 Architecture :
+//    - CoreScript = Bootstrap GELÉ ← TU ES ICI
+//    - InterfaceV2_GroupsModuleV4_Script.js = Loader minimal (147 lignes)
+//    - InterfaceV4_Triptyque_Logic.js = Logique complète (650 lignes)
+//    - GROUPS_MODULE_V4_DATA = Injection de données (voir loadDataForMode, ligne 1436)
+//
+// ✋ CHANGER QUOI QUE CE SOIT? Contact : ne pas modifier ce bloc.
+// ═══════════════════════════════════════════════════════════════════════════════
+
 // Scripts principaux extraits de InterfaceV2.html pour améliorer la lisibilité.
 // =======================================================
 // FONCTIONS UTILITAIRES GLOBALES (accessibles partout)
@@ -1432,6 +1458,52 @@ async function loadDataForMode(mode) {
         }
       });
     });
+
+    // ✅ ORDRE 7 : Injecter GROUPS_MODULE_V4_DATA pour le triptyque V4
+    // Transformer result.data au format V4 : { classes, students, scenarios }
+    const v4Classes = result.data.map(group => ({
+      id: group.classe,
+      label: group.classe,
+      classe: group.classe,
+      students: group.eleves?.length || 0
+    }));
+
+    const v4Students = [];
+    const v4Scenarios = ['needs', 'lv2', 'options'];
+
+    result.data.forEach(group => {
+      if (group.eleves && Array.isArray(group.eleves)) {
+        group.eleves.forEach(student => {
+          v4Students.push({
+            id: student.id || student.name,
+            name: student.name,
+            classe: student.classe || group.classe,
+            sexe: student.sexe || 'M',
+            scoreM: student.scoreM || 0,
+            scoreF: student.scoreF || 0,
+            com: student.com || 0,
+            tra: student.tra || 0,
+            part: student.part || 0,
+            abs: student.abs || 0,
+            lv2: student.lv2 || '',
+            opt: student.opt || ''
+          });
+        });
+      }
+    });
+
+    window.GROUPS_MODULE_V4_DATA = {
+      classes: v4Classes,
+      students: v4Students,
+      scenarios: v4Scenarios
+    };
+
+    console.log('✅ GROUPS_MODULE_V4_DATA injecté:', {
+      classes: window.GROUPS_MODULE_V4_DATA.classes.length,
+      students: window.GROUPS_MODULE_V4_DATA.students.length,
+      scenarios: window.GROUPS_MODULE_V4_DATA.scenarios.length
+    });
+
     // Afficher les colonnes
     renderBoard(result.data);
     return true;
@@ -3608,129 +3680,37 @@ window.addEventListener('DOMContentLoaded', (event) => {
   })();
 
   // =======================================================
-  // 1.6B GESTION DU BOUTON GROUPES
+  // 1.6B GESTION DU BOUTON GROUPES - BOOTSTRAP SEULEMENT
   // =======================================================
+  // ✅ ORDRE 1 : CoreScript = bootstrap only (GELÉ après validation)
+  // ✅ Logique V4 = déléguée à InterfaceV2_GroupsModuleV4_Script.js
+  // ✅ Données = injectées via GROUPS_MODULE_V4_DATA (voir initRepartitionApp)
   (function() {
     const btnGroups = document.getElementById('btnGroups');
-    
+
     if (!btnGroups) {
       console.warn('Bouton Groupes non trouvé');
       return;
     }
-    
+
     btnGroups.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      
-      console.log('🚀 Clic sur bouton Groupes - Ouverture Interface V4');
-      
-      // Ouvrir directement la nouvelle interface V4
+
+      console.log('🚀 Clic sur bouton Groupes - Activation Module V4');
+
+      // Attendre que le module V4 soit disponible
       if (window.ModuleGroupsV4) {
-        // Si le module V4 existe déjà
-        const existingModule = document.getElementById('groups-module-v4-container');
-        if (existingModule) {
-          existingModule.style.display = 'flex';
-        } else {
-          window.ModuleGroupsV4.init();
-        }
+        console.log('✅ Module V4 trouvé - ouverture');
+        window.ModuleGroupsV4.open();
       } else {
-        // Créer et afficher la nouvelle interface V4
-        createNewInterfaceV4();
+        console.warn('⚠️ Module V4 non disponible - fallback vers GroupsModuleComplete');
+        openGroupsModuleComplete();
       }
     });
-    
-    console.log('✅ Bouton Groupes initialisé');
+
+    console.log('✅ Bouton Groupes initialisé (bootstrap seulement)');
   })();
-
-  // =======================================================
-  // 1.6C FONCTION DE CRÉATION DE L'INTERFACE V4
-  // =======================================================
-  function createNewInterfaceV4() {
-    console.log('🚀 Création de la nouvelle interface V4');
-    
-    // Charger l'algorithme de répartition si pas déjà chargé
-    if (!window.GroupsAlgorithmV4) {
-      console.log('📦 Chargement de GroupsAlgorithmV4...');
-      
-      // Essayer de charger depuis le serveur Apps Script
-      const scriptUrl = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/GroupsAlgorithmV4_Distribution.js';
-      
-      fetch('GroupsAlgorithmV4_Distribution.js')
-        .then(response => {
-          if (!response.ok) {
-            console.warn('⚠️ Impossible de charger l\'algorithme externe, utilisation de la version intégrée');
-            return null;
-          }
-          return response.text();
-        })
-        .then(code => {
-          if (code) {
-            eval(code);
-            console.log('✅ GroupsAlgorithmV4 chargé depuis fichier externe');
-          }
-        })
-        .catch(err => {
-          console.warn('⚠️ Algorithme externe non disponible:', err.message);
-        });
-    }
-    
-    // Créer le conteneur principal
-    const container = document.createElement('div');
-    container.id = 'groups-module-v4-container';
-    container.className = 'fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/70 px-4';
-    
-    // ═══════════════════════════════════════════════════════════════
-    //  DÉLÉGATION AU MODULE EXISTANT
-    // ═══════════════════════════════════════════════════════════════
-    
-    // Au lieu de dupliquer tout le code ici, on charge le module existant
-    console.log('🔄 Chargement du module Groupes V4 existant...');
-    
-    // Vérifier si le module existe
-    if (typeof window.ModuleGroupsV4 === 'undefined') {
-      console.error('❌ Module Groupes V4 non chargé !');
-      alert('Erreur : Le module Groupes V4 n\'est pas disponible.');
-      container.remove();
-      return;
-    }
-    
-    // Initialiser le module avec l'état existant
-    const moduleInstance = new window.ModuleGroupsV4();
-    moduleInstance.init(container);
-    
-    document.body.appendChild(container);
-    
-    console.log('✅ Module Groupes V4 initialisé');
-    return;
-    
-    // ═══════════════════════════════════════════════════════════════
-    //  CODE DUPLIQUÉ SUPPRIMÉ (était ici lignes 3683-5574)
-    // ═══════════════════════════════════════════════════════════════
-    
-    // FIN DE LA DÉLÉGATION - Le module existant gère tout
-  }
-
-  // Exposer la fonction globalement
-  window.createNewInterfaceV4 = createNewInterfaceV4;
-
-  // =======================================================
-  // CODE DUPLIQUÉ SUPPRIMÉ (1894 lignes)
-  // =======================================================
-  /* 
-  ANCIEN CODE SUPPRIMÉ : Lignes 3710-5574
-  - Interface triptyque complète
-  - Algorithme de génération
-  - Panneau de comparaison avec swap
-  - Tout ce code existe déjà dans groupsModuleComplete.html
-  
-  RAISON : Duplication inutile qui crée :
-  - Double maintenance
-  - Conflits d'état (window.STATE écrasé)
-  - Bugs de synchronisation
-  - Surface de code x2
-  
-  SOLUTION : Déléguer au module existant (voir lignes 3687-3704)
-  */
 
   // =======================================================
   // 1.7 GESTION DU MENU COMPARER (DROPDOWN)

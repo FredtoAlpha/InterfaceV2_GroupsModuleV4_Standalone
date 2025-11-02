@@ -23,14 +23,9 @@
     return;
   }
 
-  // Classes par défaut si aucune donnée injectée
-  const DEFAULT_CLASSES = [
-    { id: '6-1', label: '6°1' },
-    { id: '6-2', label: '6°2' },
-    { id: '6-3', label: '6°3' },
-    { id: '6-4', label: '6°4' },
-    { id: '6-5', label: '6°5' }
-  ];
+  // ✅ ORDRE 3 : REFUSER les classes fictives
+  // Aucune donnée par défaut - exiger injection réelle depuis backend
+  const DEFAULT_CLASSES = null;  // ❌ REFUSÉE - données réelles obligatoires
 
   // Configuration des scénarios
   const SCENARIOS = {
@@ -135,9 +130,13 @@
         });
       }
 
-      // 3. Fallback sur DEFAULT_CLASSES (développement uniquement)
-      console.warn('⚠️ Aucune donnée de classe trouvée, utilisation des classes par défaut');
-      return DEFAULT_CLASSES;
+      // 3. ❌ REFUSER DEFAULT_CLASSES - exiger injection réelle (ORDRE 3)
+      console.error('❌ CRITIQUE : Aucune donnée de classe disponible !');
+      console.error('   window.STATE.classesData = ', windowRef.STATE?.classesData);
+      console.error('   GROUPS_MODULE_V4_DATA = ', windowRef.GROUPS_MODULE_V4_DATA);
+      console.error('   ➜ Injecter GROUPS_MODULE_V4_DATA dans initRepartitionApp() (CoreScript.html)');
+      this.state.error = '❌ Données classes manquantes - Module V4 non disponible';
+      return [];
     }
 
     /**

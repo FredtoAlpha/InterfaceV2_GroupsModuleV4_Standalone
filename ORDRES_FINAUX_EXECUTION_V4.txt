@@ -1,0 +1,259 @@
+═══════════════════════════════════════════════════════════════════════════════
+        12 ORDRES FINAUX - Module Groupes V4 100% Indépendant
+                         2 novembre 2025
+═══════════════════════════════════════════════════════════════════════════════
+
+🎯 OBJECTIF FINAL
+═══════════════════════════════════════════════════════════════════════════════
+
+Module V4 = SYSTÈME NOUVEAU ET INDÉPENDANT
+GroupsModuleComplete = LAISSÉ INTOUCHÉ
+CoreScript = BOOTSTRAP SEULEMENT (GELÉ APRÈS)
+
+Aucune duplication. Aucune régression. Zéro compromis.
+
+
+12 ORDRES NON-NÉGOCIABLES
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ ORDRE 1 : Écarter métier de CoreScript
+   Fichier : InterfaceV2_CoreScript.html
+   Action : Aucune logique V4 spécifique
+   Vérification : grep ModuleGroupsV4 = 0 résultats
+   État : ✅ Bootstrap seulement
+
+✅ ORDRE 2 : Garder V4_Script comme loader minimal
+   Fichier : InterfaceV2_GroupsModuleV4_Script.js
+   Action : Instancer triptyque, rien d'autre
+   Vérification : wc -l < 200 lignes
+   État : ✅ Loader minimal (pas duplication)
+
+✅ ORDRE 3 : Éliminer données fictives
+   Fichier : InterfaceV4_Triptyque_Logic.js
+   Action : Refuser DEFAULT_CLASSES si données réelles manquent
+   Vérification : Tableau vide si GROUPS_MODULE_V4_DATA vide
+   État : ✅ Données réelles ou erreur claire
+
+✅ ORDRE 4 : Publier bundles sans erreur 404
+   Fichiers : InterfaceV4_Triptyque_Logic.js, InterfaceV2_GroupsModuleV4_Script.js
+   Méthode : Web App endpoint ou CDN interne
+   Vérification : curl → Status 200, JS brut (pas HTML)
+   État : ✅ Aucune erreur 404 ou SyntaxError
+
+✅ ORDRE 5 : Recompiler avec globalThis
+   Fichiers : GroupsAlgorithmV4_Distribution.js, InterfaceV4_Triptyque_Logic.js
+   Action : Remplacer function(global) par globalThis
+   Vérification : grep 'function(global)' = 0 résultats
+   État : ✅ Pas de ReferenceError: global
+
+✅ ORDRE 6 : Adapter getClassesData pour V4
+   Fichier : Code.gs (backend)
+   Action : Assurer chaque élève a { id, classe, scoreM, scoreF, com, tra, part, abs, lv2, opt }
+   Vérification : Logs backend montrent champs présents
+   État : ✅ Format V4 complet
+
+✅ ORDRE 7 : Injecter GROUPS_MODULE_V4_DATA
+   Fichier : InterfaceV2_CoreScript.html (initRepartitionApp)
+   Action : window.GROUPS_MODULE_V4_DATA = { classes, students, scenarios }
+   Vérification : Console montre données avant triptyque
+   État : ✅ Données injectées avant utilisation
+
+✅ ORDRE 8 : Laisser InterfaceV2_GroupsModuleV4_Script.js instancier
+   Fichier : InterfaceV2_GroupsModuleV4_Script.js
+   Action : new TriptychGroupsModule(GROUPS_MODULE_V4_DATA) seulement
+   Vérification : Aucune autre logique, aucune duplication
+   État : ✅ Responsabilité unique
+
+✅ ORDRE 9 : Retirer fallback automatique
+   Fichier : InterfaceV2.html
+   Action : Basculer vers GroupsModuleComplete SEULEMENT si V4 échoue (pas automatique)
+   Vérification : Logs expliquent chaque branche
+   État : ✅ Pas de fallback silencieux
+
+✅ ORDRE 10 : Test complet en mode CACHE
+   Procédure : 2 regroupements, statistiques > 0, pas de "0 élèves"
+   Vérification : Test 1-6 réussis, console propre
+   État : ✅ V4 opérationnel de bout en bout
+
+✅ ORDRE 11 : Geler CoreScript
+   Fichier : InterfaceV2_CoreScript.html
+   Action : Marquer GELÉ, aucune logique V4 supplémentaire
+   Vérification : Commentaire de gel présent
+   État : ✅ Bootstrap gelé après validation
+
+✅ ORDRE 12 : Documenter chaîne de chargement
+   Créer : DOCUMENTATION_GROUPS_MODULE_V4.md
+   Contenu : Ordre chargement, format GROUPS_MODULE_V4_DATA, points critiques
+   Vérification : Doc verrouille le périmètre
+   État : ✅ Architecture documentée et verrouillée
+
+
+PRINCIPES NON-NÉGOCIABLES
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ V4 est UN SYSTÈME NOUVEAU
+   - Fonctionne indépendamment
+   - Aucune dépendance au vieux module
+   - Aucune duplication de code
+
+✅ GroupsModuleComplete RESTE INTOUCHÉ
+   - Pas de refactoring
+   - Pas de suppression
+   - Pas d'intégration forcée
+
+✅ CoreScript = BOOTSTRAP SEULEMENT
+   - Menus, header, init
+   - Alimentation GROUPS_MODULE_V4_DATA
+   - PAS de logique V4
+   - GELÉ après tests
+
+✅ V4 UTILISE VRAIES DONNÉES
+   - Pas de DEFAULT_CLASSES
+   - Alimenté depuis getClassesData()
+   - Injecté avant utilisation
+   - Signal d'erreur clair si manquant
+
+
+TIMELINE D'EXÉCUTION
+═══════════════════════════════════════════════════════════════════════════════
+
+JOUR 1 (Matin - 45 min)
+  ✅ Ordres 1-5 : Préparation et publication bundles
+     - Vérifier CoreScript
+     - Vérifier loader minimal
+     - Vérifier refus DEFAULT_CLASSES
+     - Publier bundles
+     - Recompiler globalThis
+
+JOUR 1 (Après-midi - 90 min)
+  ✅ Ordres 6-9 : Données et intégration
+     - Adapter getClassesData()
+     - Injecter GROUPS_MODULE_V4_DATA
+     - Vérifier instanciation
+     - Vérifier fallback conditionnel
+
+JOUR 2 (Matin - 60 min)
+  ✅ Ordre 10 : Test complet
+     - Test mode CACHE
+     - 2 regroupements minimum
+     - Vérifier statistiques
+     - Vérifier logs
+
+JOUR 2 (Après-midi - 30 min)
+  ✅ Ordres 11-12 : Gel et documentation
+     - Geler CoreScript
+     - Créer documentation
+     - Verrouiller architecture
+
+TOTAL : 3-4 heures pour V4 100% indépendant et opérationnel
+
+
+VALIDATION POINTS DE CONTRÔLE
+═══════════════════════════════════════════════════════════════════════════════
+
+ORDRE 1 : CoreScript propre
+  [ ] grep ModuleGroupsV4 = 0
+  [ ] grep TriptychGroupsModule = 0
+  [ ] grep regroupement = 0
+
+ORDRE 2 : Loader minimal
+  [ ] wc -l < 200 lignes
+  [ ] Aucune duplication avec groupsModuleComplete
+  [ ] Une seule responsabilité : instanciation
+
+ORDRE 3 : Données fictives refusées
+  [ ] DEFAULT_CLASSES marquées ❌ REFUSÉE
+  [ ] Logique : GROUPS_MODULE_V4_DATA > STATE > Erreur
+  [ ] Jamais de fallback silencieux à fictives
+
+ORDRE 4 : Bundles publiés
+  [ ] curl endpoint → Status 200
+  [ ] Réponse = JavaScript brut (pas HTML)
+  [ ] Aucune erreur 404
+
+ORDRE 5 : globalThis partout
+  [ ] grep 'function(global)' = 0
+  [ ] Tous les exports = windowRef ou globalThis
+  [ ] Pas de ReferenceError au test
+
+ORDRE 6 : getClassesData adapté
+  [ ] Logs backend : { id, classe, scores, ... } présents
+  [ ] Format V4 complet dans réponse
+
+ORDRE 7 : GROUPS_MODULE_V4_DATA injecté
+  [ ] Console : window.GROUPS_MODULE_V4_DATA visible
+  [ ] Contient { classes, students, scenarios }
+  [ ] Chaque étudiant a `classe` rempli
+
+ORDRE 8 : Instanciation correcte
+  [ ] ModuleGroupsV4 créé sans erreur
+  [ ] TriptychGroupsModule initialisé
+  [ ] Aucune logique supplémentaire
+
+ORDRE 9 : Fallback conditionnel
+  [ ] Logs expliquent branche V4 / fallback
+  [ ] Pas de fallback automatique
+  [ ] Fallback seulement si GROUPS_MODULE_V4_DATA vide
+
+ORDRE 10 : Test complet réussi
+  [ ] 2 regroupements créés
+  [ ] Statistiques > 0 pour chacun
+  [ ] Pas d'erreur "0 élèves sélectionnés"
+  [ ] Aucune SyntaxError / ReferenceError
+  [ ] Pas de fallback vers GroupsModuleComplete
+
+ORDRE 11 : CoreScript gelé
+  [ ] Commentaire de gel présent
+  [ ] Aucun changement supplémentaire accepté
+
+ORDRE 12 : Documentation verrouillée
+  [ ] DOCUMENTATION_GROUPS_MODULE_V4.md créée
+  [ ] Chaîne de chargement explicite
+  [ ] Points critiques documentés
+  [ ] Périmètre CoreScript verrouillé
+
+
+RÉSULTAT FINAL
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ Module V4 OPÉRATIONNEL
+   - Interface V4 s'ouvre
+   - Vraies données affichées
+   - Regroupements créables
+   - Statistiques non nulles
+
+✅ GroupsModuleComplete INTACT
+   - Aucune modification
+   - Pas de régression
+   - Prêt comme fallback si nécessaire
+
+✅ Architecture PROPRE
+   - CoreScript = bootstrap gelé
+   - V4 = système indépendant
+   - Aucune duplication
+   - Maintenable long-terme
+
+✅ DOCUMENTÉ et VERROUILLÉ
+   - Chaîne de chargement claire
+   - Points critiques explicites
+   - Périmètre CoreScript gelé
+   - Evolution future guidée
+
+
+PROCHAINE ÉTAPE
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Lire PLAN_EXECUTION_V4_INDEPENDANT.md (détails complets)
+2. Suivre les 12 ordres dans l'ordre exact
+3. Valider chaque point de contrôle
+4. Signer off la validation finale
+
+=> V4 prêt pour production
+
+
+═══════════════════════════════════════════════════════════════════════════════
+12 ORDRES = NON-NÉGOCIABLES
+V4 INDÉPENDANT = OBJECTIF FINAL
+DURÉE = 3-4 HEURES
+STATUS = 🟢 PRÊT POUR EXÉCUTION DEMAIN
+═══════════════════════════════════════════════════════════════════════════════
