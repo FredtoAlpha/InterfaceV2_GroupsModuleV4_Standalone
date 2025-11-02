@@ -553,12 +553,28 @@ const ElevesBackend = (function(global) {
         return null;
       }
       const students = [];
+      const rawName = sheet.name;  // ✅ Nom complet avec suffixe
+      const canonical = stripSuffix(rawName, suffix);  // ✅ Nom sans suffixe
+      
       for (let r = 1; r < sheet.values.length; r++) {
         const student = createStudent(sheet.values[r], columns);
-        if (student) students.push(student);
+        if (student) {
+          // ✅ AJOUT : Ajouter la classe à chaque élève
+          student.classe = rawName;
+          student.classeCanonical = canonical;
+          students.push(student);
+        }
       }
       if (!students.length) return null;
-      return { classe: stripSuffix(sheet.name, suffix), eleves: students };
+      
+      // ✅ AJOUT : Retourner avec métadonnées complètes
+      return { 
+        classe: canonical,  // Nom sans suffixe (pour compatibilité)
+        classeRaw: rawName,  // ✅ Nom complet avec suffixe
+        suffix: suffix || '',  // ✅ Suffixe détecté
+        canonical: canonical,  // ✅ Nom canonique
+        eleves: students 
+      };
     }
 
     function buildClassesData(sheets, { suffix, logger: localLogger = logger } = {}) {

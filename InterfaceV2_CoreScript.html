@@ -3995,6 +3995,7 @@ window.addEventListener('DOMContentLoaded', (event) => {
     
     const detailHeader = container.querySelector('#regroupement-detail-header');
     const detailEmpty = container.querySelector('#detail-empty');
+    const detailContent = container.querySelector('#regroupement-detail-content');
     const detailForm = container.querySelector('#detail-form');
     const detailTitle = container.querySelector('#detail-title');
     const detailClassesCount = container.querySelector('#detail-classes-count');
@@ -4143,12 +4144,24 @@ window.addEventListener('DOMContentLoaded', (event) => {
         
         // Afficher les classes
         if (availableClasses.length > 0) {
-          availableClassesList.innerHTML = availableClasses.map(cls => `
-            <div class="flex items-center justify-between p-2 bg-white rounded border border-slate-200 hover:border-purple-300 transition-colors">
-              <span class="font-medium text-slate-700">${cls.name}</span>
-              <span class="text-slate-500 text-xs">${cls.students} él.</span>
-            </div>
-          `).join('');
+          availableClassesList.innerHTML = availableClasses.map(cls => {
+            // Vérifier si la classe est déjà utilisée dans un regroupement
+            const isUsed = state.regroupements.some(r => r.classes.includes(cls.id));
+            
+            return `
+              <div class="flex items-center justify-between p-2 rounded border transition-colors ${
+                isUsed 
+                  ? 'bg-slate-100 border-slate-300 opacity-50 cursor-not-allowed' 
+                  : 'bg-white border-slate-200 hover:border-purple-300'
+              }">
+                <span class="font-medium ${isUsed ? 'text-slate-400' : 'text-slate-700'}">${cls.name}</span>
+                <div class="flex items-center gap-2">
+                  <span class="text-slate-500 text-xs">${cls.students} él.</span>
+                  ${isUsed ? '<i class="fas fa-check-circle text-green-600 text-xs" title="Déjà utilisée"></i>' : ''}
+                </div>
+              </div>
+            `;
+          }).join('');
         } else {
           availableClassesList.innerHTML = `
             <div class="p-3 text-center text-slate-500 text-xs">
@@ -4389,6 +4402,33 @@ window.addEventListener('DOMContentLoaded', (event) => {
       
       updateRegroupementStats();
       renderRegroupementsList();
+      
+      // ✅ Rafraîchir l'affichage des classes disponibles pour griser celles utilisées
+      refreshAvailableClassesDisplay();
+    }
+    
+    // Rafraîchir l'affichage des classes (sans recharger depuis le serveur)
+    function refreshAvailableClassesDisplay() {
+      if (availableClasses.length > 0) {
+        availableClassesList.innerHTML = availableClasses.map(cls => {
+          // Vérifier si la classe est déjà utilisée dans un regroupement
+          const isUsed = state.regroupements.some(r => r.classes.includes(cls.id));
+          
+          return `
+            <div class="flex items-center justify-between p-2 rounded border transition-colors ${
+              isUsed 
+                ? 'bg-slate-100 border-slate-300 opacity-50 cursor-not-allowed' 
+                : 'bg-white border-slate-200 hover:border-purple-300'
+            }">
+              <span class="font-medium ${isUsed ? 'text-slate-400' : 'text-slate-700'}">${cls.name}</span>
+              <div class="flex items-center gap-2">
+                <span class="text-slate-500 text-xs">${cls.students} él.</span>
+                ${isUsed ? '<i class="fas fa-check-circle text-green-600 text-xs" title="Déjà utilisée"></i>' : ''}
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
     }
     
     // Mettre à jour les statistiques du regroupement actuel
@@ -4524,13 +4564,11 @@ window.addEventListener('DOMContentLoaded', (event) => {
     });
     
     
-    btnGenerateCurrent.addEventListener('click', async () => {
-      const regroupement = state.regroupements.find(r => r.id === currentRegroupementId);
-      if (!regroupement) {
-        console.error('❌ Aucun regroupement sélectionné');
-        return;
-      }
-      
+    // ═══════════════════════════════════════════════════════════════
+    //  FONCTION DE GÉNÉRATION (utilisée par les 2 boutons)
+    // ═══════════════════════════════════════════════════════════════
+    
+    async function handleGenerateGroups(regroupement) {
       console.log(`🎯 Génération du regroupement:`, regroupement);
       console.log(`📊 État:`, state);
       
@@ -4634,30 +4672,150 @@ window.addEventListener('DOMContentLoaded', (event) => {
           return;
         }
         
-        // Initialiser l'algorithme (vérifier si chargé, sinon utiliser version simplifiée)
-        let algorithm;
+        // ═══════════════════════════════════════════════════════════════
+        //  ALGORITHME COMPLET INTÉGRÉ
+        // ═══════════════════════════════════════════════════════════════
         
-        if (window.GroupsAlgorithmV4) {
-          algorithm = new window.GroupsAlgorithmV4();
-          console.log('✅ Utilisation de GroupsAlgorithmV4');
-        } else {
-          console.warn('⚠️ GroupsAlgorithmV4 non chargé, utilisation algorithme simplifié');
-          // Algorithme simplifié intégré
-          algorithm = {
-            consolidateData: (students) => students,
-            normalizeScores: (students) => students,
-            distributeStudents: (students, groupCount, mode) => {
-              // Distribution simple par rotation
-              const groups = Array.from({ length: groupCount }, () => ({ students: [] }));
-              students.forEach((student, idx) => {
-                groups[idx % groupCount].students.push(student);
+        console.log('🧮 Utilisation de l\'algorithme complet intégré');
+        
+        const algorithm = {
+          // Consolider les données (extraire les scores M et F)
+          consolidateData: (students, scenario) => {
+            return students.map(s => ({
+              ...s,
+              scoreM: parseFloat(s.scoreM) || 0,
+              scoreF: parseFloat(s.scoreF) || 0,
+              scoreCombined: (parseFloat(s.scoreM) || 0) + (parseFloat(s.scoreF) || 0)
+            }));
+          },
+          
+          // Normaliser en z-scores
+          normalizeScores: (students, scenario) => {
+            const scores = students.map(s => s.scoreCombined);
+            const mean = scores.reduce((a, b) => a + b, 0) / scores.length;
+            const variance = scores.reduce((sum, score) => sum + Math.pow(score - mean, 2), 0) / scores.length;
+            const stdDev = Math.sqrt(variance);
+            
+            return students.map(s => ({
+              ...s,
+              zScore: stdDev > 0 ? (s.scoreCombined - mean) / stdDev : 0
+            }));
+          },
+          
+          // Distribuer les élèves selon la stratégie
+          distributeStudents: (students, groupCount, mode) => {
+            // Séparer par sexe
+            const filles = students.filter(s => s.sexe === 'F').sort((a, b) => b.zScore - a.zScore);
+            const garcons = students.filter(s => s.sexe === 'M').sort((a, b) => b.zScore - a.zScore);
+            
+            // Créer les groupes
+            const groups = Array.from({ length: groupCount }, () => ({ students: [] }));
+            
+            if (mode === 'heterogeneous') {
+              // Distribution hétérogène : alterner fort/faible
+              let groupIndex = 0;
+              let direction = 1;
+              
+              // Distribuer les filles
+              filles.forEach(fille => {
+                groups[groupIndex].students.push(fille);
+                groupIndex += direction;
+                if (groupIndex >= groupCount || groupIndex < 0) {
+                  direction *= -1;
+                  groupIndex += direction;
+                }
               });
-              return groups;
-            },
-            calculateGroupStatistics: (groups) => ({}),
-            validateConstraints: (groups, stats) => ({ isValid: true, alerts: [] })
-          };
-        }
+              
+              // Distribuer les garçons
+              groupIndex = 0;
+              direction = 1;
+              garcons.forEach(garcon => {
+                groups[groupIndex].students.push(garcon);
+                groupIndex += direction;
+                if (groupIndex >= groupCount || groupIndex < 0) {
+                  direction *= -1;
+                  groupIndex += direction;
+                }
+              });
+            } else {
+              // Distribution homogène : regrouper par niveau
+              const allSorted = [...students].sort((a, b) => b.zScore - a.zScore);
+              const groupSize = Math.ceil(allSorted.length / groupCount);
+              
+              allSorted.forEach((student, idx) => {
+                const groupIdx = Math.floor(idx / groupSize);
+                if (groupIdx < groupCount) {
+                  groups[groupIdx].students.push(student);
+                }
+              });
+            }
+            
+            return groups;
+          },
+          
+          // Calculer les statistiques par groupe
+          calculateGroupStatistics: (groups) => {
+            return groups.map(group => {
+              const filles = group.students.filter(s => s.sexe === 'F');
+              const garcons = group.students.filter(s => s.sexe === 'M');
+              
+              const avgScoreM = group.students.reduce((sum, s) => sum + s.scoreM, 0) / group.students.length;
+              const avgScoreF = group.students.reduce((sum, s) => sum + s.scoreF, 0) / group.students.length;
+              const avgCombined = group.students.reduce((sum, s) => sum + s.scoreCombined, 0) / group.students.length;
+              
+              return {
+                size: group.students.length,
+                countF: filles.length,
+                countM: garcons.length,
+                ratioF: filles.length / group.students.length,
+                avgScoreM: avgScoreM,
+                avgScoreF: avgScoreF,
+                avgCombined: avgCombined,
+                minScore: Math.min(...group.students.map(s => s.scoreCombined)),
+                maxScore: Math.max(...group.students.map(s => s.scoreCombined))
+              };
+            });
+          },
+          
+          // Valider les contraintes
+          validateConstraints: (groups, stats) => {
+            const alerts = [];
+            
+            // Vérifier la parité
+            stats.forEach((stat, idx) => {
+              if (stat.countF === 0 || stat.countM === 0) {
+                alerts.push({
+                  severity: 'warning',
+                  message: `Groupe ${idx + 1} : Pas de mixité (${stat.countF}F, ${stat.countM}M)`
+                });
+              }
+              
+              const pariteDiff = Math.abs(stat.ratioF - 0.5);
+              if (pariteDiff > 0.3) {
+                alerts.push({
+                  severity: 'warning',
+                  message: `Groupe ${idx + 1} : Déséquilibre F/M (${Math.round(stat.ratioF * 100)}% filles)`
+                });
+              }
+            });
+            
+            // Vérifier l'équilibre des tailles
+            const sizes = stats.map(s => s.size);
+            const maxSize = Math.max(...sizes);
+            const minSize = Math.min(...sizes);
+            if (maxSize - minSize > 2) {
+              alerts.push({
+                severity: 'warning',
+                message: `Tailles déséquilibrées : ${minSize} à ${maxSize} élèves`
+              });
+            }
+            
+            return {
+              isValid: alerts.filter(a => a.severity === 'error').length === 0,
+              alerts: alerts
+            };
+          }
+        };
         
         // Consolider les données
         const consolidated = algorithm.consolidateData(selectedStudents, state.scenario || 'needs');
@@ -4693,10 +4851,19 @@ window.addEventListener('DOMContentLoaded', (event) => {
         // Fermer le spinner avec animation de succès
         const spinner = document.getElementById('generation-spinner');
         if (spinner) {
-          spinner.querySelector('h3').textContent = '✓ Génération terminée !';
-          spinner.querySelector('h3').classList.add('text-green-600');
-          spinner.querySelector('.animate-spin').classList.remove('animate-spin');
-          spinner.querySelector('.animate-spin').classList.add('border-green-600');
+          const h3 = spinner.querySelector('h3');
+          const spinElement = spinner.querySelector('.animate-spin');
+          
+          if (h3) {
+            h3.textContent = '✓ Génération terminée !';
+            h3.classList.add('text-green-600');
+          }
+          
+          if (spinElement) {
+            spinElement.classList.remove('animate-spin');
+            spinElement.classList.add('border-green-600');
+          }
+          
           setTimeout(() => {
             spinner.remove();
           }, 800);
@@ -4708,11 +4875,28 @@ window.addEventListener('DOMContentLoaded', (event) => {
         // Fermer le spinner avec animation d'erreur
         const spinner = document.getElementById('generation-spinner');
         if (spinner) {
-          spinner.querySelector('h3').textContent = '✗ Erreur de génération';
-          spinner.querySelector('h3').classList.add('text-red-600');
-          spinner.querySelector('.animate-spin').classList.remove('animate-spin');
-          spinner.querySelector('.border-purple-600').classList.remove('border-purple-600');
-          spinner.querySelector('.border-t-transparent').classList.add('border-red-600');
+          const h3 = spinner.querySelector('h3');
+          const spinElement = spinner.querySelector('.animate-spin');
+          const purpleBorder = spinner.querySelector('.border-purple-600');
+          const transparentBorder = spinner.querySelector('.border-t-transparent');
+          
+          if (h3) {
+            h3.textContent = '✗ Erreur de génération';
+            h3.classList.add('text-red-600');
+          }
+          
+          if (spinElement) {
+            spinElement.classList.remove('animate-spin');
+          }
+          
+          if (purpleBorder) {
+            purpleBorder.classList.remove('border-purple-600');
+          }
+          
+          if (transparentBorder) {
+            transparentBorder.classList.add('border-red-600');
+          }
+          
           setTimeout(() => {
             spinner.remove();
             alert(`Erreur: ${error.message}`);
@@ -4721,6 +4905,19 @@ window.addEventListener('DOMContentLoaded', (event) => {
           alert(`Erreur: ${error.message}`);
         }
       }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    //  EVENT LISTENERS POUR LES BOUTONS DE GÉNÉRATION
+    // ═══════════════════════════════════════════════════════════════
+    
+    btnGenerateCurrent.addEventListener('click', async () => {
+      const regroupement = state.regroupements.find(r => r.id === currentRegroupementId);
+      if (!regroupement) {
+        console.error('❌ Aucun regroupement sélectionné');
+        return;
+      }
+      await handleGenerateGroups(regroupement);
     });
     
     btnGenerateAll.addEventListener('click', async () => {
@@ -4745,6 +4942,504 @@ window.addEventListener('DOMContentLoaded', (event) => {
     // ═══════════════════════════════════════════════════════════════
     
     function displayGroupsResults(regroupement) {
+      console.log('📊 Affichage des résultats pour:', regroupement.name);
+      
+      // ❌ NE PAS afficher dans le panneau d'édition
+      // ✅ Ouvrir le panneau 2 de comparaison
+      openComparisonPanel();
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    //  PANNEAU 2 : COMPARAISON DES SCÉNARIOS
+    // ═══════════════════════════════════════════════════════════════
+    
+    function openComparisonPanel() {
+      console.log('🎯 Ouverture du panneau de comparaison');
+      
+      // Masquer le panneau 1
+      container.style.display = 'none';
+      
+      // Créer le panneau 2
+      const comparisonPanel = document.createElement('div');
+      comparisonPanel.id = 'comparison-panel';
+      comparisonPanel.className = 'fixed inset-0 z-[9999] bg-white';
+      
+      comparisonPanel.innerHTML = `
+        <div class="h-full flex flex-col">
+          <!-- Header -->
+          <header class="px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+              <button id="btn-back-to-config" class="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors">
+                <i class="fas fa-arrow-left mr-2"></i>Retour à la configuration
+              </button>
+              <div class="text-white">
+                <h2 class="text-xl font-bold">Comparaison des scénarios</h2>
+                <p class="text-sm text-purple-100">${state.regroupements.filter(r => r.status === 'validated').length} scénarios générés</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button id="btn-regenerate-all" class="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors">
+                <i class="fas fa-sync mr-2"></i>Régénérer tous
+              </button>
+              <button id="btn-validate-scenario" class="px-6 py-2 bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg transition-colors">
+                <i class="fas fa-check mr-2"></i>Valider ce scénario
+              </button>
+            </div>
+          </header>
+          
+          <!-- Navigation entre scénarios -->
+          <div class="flex items-center justify-center gap-4 px-6 py-4 bg-slate-50 border-b border-slate-200">
+            <button id="btn-prev-scenario" class="px-4 py-2 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+              <i class="fas fa-chevron-left"></i>
+            </button>
+            <div id="scenario-indicator" class="text-center">
+              <div class="text-2xl font-bold text-purple-600">Scénario <span id="current-scenario-num">1</span></div>
+              <div class="text-sm text-slate-600"><span id="current-scenario-name">Regroupement 1</span></div>
+            </div>
+            <button id="btn-next-scenario" class="px-4 py-2 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+              <i class="fas fa-chevron-right"></i>
+            </button>
+          </div>
+          
+          <!-- Contenu du scénario avec panneau stats -->
+          <div class="flex-1 flex gap-4 overflow-hidden">
+            <!-- Groupes (gauche) -->
+            <div id="scenario-content" class="flex-1 overflow-y-auto p-6">
+              <!-- Sera rempli dynamiquement -->
+            </div>
+            
+            <!-- Panneau statistiques (droite) -->
+            <div id="stats-panel" class="w-80 bg-slate-50 border-l border-slate-200 overflow-y-auto p-4">
+              <div class="bg-purple-600 text-white rounded-xl p-4 mb-4">
+                <h3 class="text-lg font-bold flex items-center gap-2">
+                  <i class="fas fa-chart-bar"></i>
+                  Distribution des scores
+                </h3>
+                <p class="text-sm text-purple-100 mt-1">Analyse par groupe</p>
+              </div>
+              <div id="stats-content">
+                <!-- Sera rempli dynamiquement -->
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(comparisonPanel);
+      
+      // Variables de navigation
+      let currentScenarioIndex = 0;
+      const validatedScenarios = state.regroupements.filter(r => r.status === 'validated');
+      
+      // Fonctions de navigation
+      function renderCurrentScenario() {
+        const scenario = validatedScenarios[currentScenarioIndex];
+        if (!scenario) return;
+        
+        document.getElementById('current-scenario-num').textContent = currentScenarioIndex + 1;
+        document.getElementById('current-scenario-name').textContent = scenario.name;
+        document.getElementById('btn-prev-scenario').disabled = currentScenarioIndex === 0;
+        document.getElementById('btn-next-scenario').disabled = currentScenarioIndex === validatedScenarios.length - 1;
+        
+        renderScenarioContent(scenario);
+      }
+      
+      function renderScenarioContent(scenario) {
+        const content = document.getElementById('scenario-content');
+        
+        // Calculer les statistiques globales
+        const totalStudents = scenario.groups.reduce((sum, g) => sum + g.students.length, 0);
+        const totalF = scenario.groups.reduce((sum, g) => sum + g.students.filter(s => s.sexe === 'F').length, 0);
+        const totalM = scenario.groups.reduce((sum, g) => sum + g.students.filter(s => s.sexe === 'M').length, 0);
+        const avgSize = Math.round(totalStudents / scenario.groups.length);
+        
+        // Header des résultats
+        const header = `
+          <div class="mb-6">
+            <!-- Statistiques principales -->
+            <div class="grid grid-cols-4 gap-4 mb-4">
+              <div class="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
+                <div class="text-blue-600 text-sm mb-1">Groupes créés</div>
+                <div class="text-3xl font-bold text-blue-900">${scenario.groups.length}</div>
+              </div>
+              <div class="bg-green-50 border-2 border-green-200 rounded-xl p-4">
+                <div class="text-green-600 text-sm mb-1">Total élèves</div>
+                <div class="text-3xl font-bold text-green-900">${totalStudents}</div>
+                <div class="text-xs text-green-700 mt-1">${totalF}F / ${totalM}M</div>
+              </div>
+              <div class="bg-purple-50 border-2 border-purple-200 rounded-xl p-4">
+                <div class="text-purple-600 text-sm mb-1">Taille moyenne</div>
+                <div class="text-3xl font-bold text-purple-900">${avgSize}</div>
+                <div class="text-xs text-purple-700 mt-1">élèves/groupe</div>
+              </div>
+              <div class="bg-orange-50 border-2 border-orange-200 rounded-xl p-4">
+                <div class="text-orange-600 text-sm mb-1">Mode</div>
+                <div class="text-lg font-bold text-orange-900">${state.distributionMode === 'heterogeneous' ? 'Hétérogène' : 'Homogène'}</div>
+              </div>
+            </div>
+            
+            <!-- Alertes de validation -->
+            ${scenario.validation && scenario.validation.alerts && scenario.validation.alerts.length > 0 ? `
+              <div class="p-4 ${scenario.validation.isValid ? 'bg-orange-50 border-2 border-orange-200' : 'bg-red-50 border-2 border-red-200'} rounded-xl">
+                <h4 class="text-sm font-bold mb-2 flex items-center gap-2">
+                  <i class="fas ${scenario.validation.isValid ? 'fa-exclamation-triangle text-orange-600' : 'fa-times-circle text-red-600'}"></i>
+                  ${scenario.validation.alerts.length} alerte(s) détectée(s)
+                </h4>
+                <div class="space-y-1">
+                  ${scenario.validation.alerts.map(alert => `
+                    <div class="text-xs ${alert.severity === 'error' ? 'text-red-700' : 'text-orange-700'} flex items-start gap-2">
+                      <i class="fas fa-info-circle mt-0.5"></i>
+                      <span>${alert.message}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            ` : `
+              <div class="p-4 bg-green-50 border-2 border-green-200 rounded-xl">
+                <h4 class="text-sm font-bold flex items-center gap-2">
+                  <i class="fas fa-check-circle text-green-600"></i>
+                  ✓ Toutes les contraintes sont respectées
+                </h4>
+                <p class="text-xs text-green-700 mt-1">Parité F/M équilibrée, tailles homogènes</p>
+              </div>
+            `}
+          </div>
+        `;
+        
+        // Groupes avec swap
+        const groupsHTML = `
+          <div class="grid grid-cols-${Math.min(scenario.groups.length, 3)} gap-4">
+            ${scenario.groups.map((group, groupIdx) => `
+              <div class="bg-white border-2 border-slate-200 rounded-xl overflow-hidden">
+                <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4">
+                  <h4 class="font-bold text-lg">Groupe ${groupIdx + 1}</h4>
+                  <p class="text-sm text-purple-100">${group.students.length} élèves</p>
+                </div>
+                <div class="p-2 space-y-1 max-h-[600px] overflow-y-auto" data-group-id="${groupIdx}">
+                  ${group.students.map((student, studentIdx) => `
+                    <div class="student-card flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-200 hover:border-purple-300 transition-colors cursor-move" 
+                         data-student-id="${student.id}" 
+                         data-group-id="${groupIdx}"
+                         draggable="true">
+                      <div class="flex items-center gap-2 flex-1">
+                        <span class="w-6 h-6 rounded-full ${student.sexe === 'F' ? 'bg-pink-100 text-pink-600' : 'bg-blue-100 text-blue-600'} flex items-center justify-center text-xs font-bold">
+                          ${student.sexe}
+                        </span>
+                        <div class="flex-1">
+                          <div class="text-sm font-medium text-slate-700">${student.prenom.substring(0, 3).toUpperCase()} ${student.nom.substring(0, 1).toUpperCase()}</div>
+                          ${student.scoreM !== undefined && student.scoreF !== undefined ? `
+                            <div class="text-xs text-slate-500">M:${student.scoreM.toFixed(1)} F:${student.scoreF.toFixed(1)}</div>
+                          ` : ''}
+                        </div>
+                      </div>
+                      <div class="flex items-center gap-1">
+                        ${groupIdx < scenario.groups.length - 1 ? `
+                          <button class="swap-btn px-2 py-1 bg-purple-100 hover:bg-purple-200 text-purple-600 rounded text-xs transition-colors" 
+                                  data-from-group="${groupIdx}" 
+                                  data-to-group="${groupIdx + 1}" 
+                                  data-student-idx="${studentIdx}"
+                                  title="Échanger avec le groupe ${groupIdx + 2}">
+                            <i class="fas fa-exchange-alt"></i>
+                          </button>
+                        ` : ''}
+                      </div>
+                    </div>
+                  `).join('')}
+                </div>
+                <div class="p-3 bg-slate-50 border-t border-slate-200 text-xs">
+                  <!-- Parité F/M -->
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="flex items-center gap-1">
+                      <i class="fas fa-venus text-pink-600"></i>
+                      <strong>${group.students.filter(s => s.sexe === 'F').length}</strong>
+                      <span class="text-slate-500">F</span>
+                    </span>
+                    <span class="flex items-center gap-1">
+                      <i class="fas fa-mars text-blue-600"></i>
+                      <strong>${group.students.filter(s => s.sexe === 'M').length}</strong>
+                      <span class="text-slate-500">M</span>
+                    </span>
+                    <span class="text-xs px-2 py-1 rounded ${
+                      Math.abs((group.students.filter(s => s.sexe === 'F').length / group.students.length) - 0.5) < 0.15 
+                        ? 'bg-green-100 text-green-700' 
+                        : 'bg-orange-100 text-orange-700'
+                    }">
+                      ${Math.round((group.students.filter(s => s.sexe === 'F').length / group.students.length) * 100)}% F
+                    </span>
+                  </div>
+                  
+                  <!-- Moyennes académiques -->
+                  ${group.students.some(s => s.scoreM !== undefined && s.scoreM > 0) ? `
+                    <div class="space-y-1 pt-2 border-t border-slate-200">
+                      <div class="flex items-center justify-between">
+                        <span class="text-slate-600">📊 Maths:</span>
+                        <strong class="text-purple-600">${(group.students.reduce((sum, s) => sum + (parseFloat(s.scoreM) || 0), 0) / group.students.length).toFixed(1)}</strong>
+                      </div>
+                      <div class="flex items-center justify-between">
+                        <span class="text-slate-600">📚 Français:</span>
+                        <strong class="text-indigo-600">${(group.students.reduce((sum, s) => sum + (parseFloat(s.scoreF) || 0), 0) / group.students.length).toFixed(1)}</strong>
+                      </div>
+                      <div class="flex items-center justify-between pt-1 border-t border-slate-200">
+                        <span class="text-slate-600">📈 Moyenne:</span>
+                        <strong class="text-green-600">${((group.students.reduce((sum, s) => sum + (parseFloat(s.scoreM) || 0) + (parseFloat(s.scoreF) || 0), 0) / group.students.length) / 2).toFixed(1)}</strong>
+                      </div>
+                    </div>
+                  ` : ''}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+        
+        content.innerHTML = header + groupsHTML;
+        
+        // Rendre le panneau de statistiques
+        renderStatsPanel(scenario);
+        
+        // Activer le drag & drop
+        enableDragAndDrop(scenario);
+        
+        // Activer les boutons de swap
+        enableSwapButtons(scenario);
+      }
+      
+      // ═══════════════════════════════════════════════════════════════
+      //  PANNEAU DE STATISTIQUES
+      // ═══════════════════════════════════════════════════════════════
+      
+      function renderStatsPanel(scenario) {
+        const statsContent = document.getElementById('stats-content');
+        if (!statsContent) return;
+        
+        const statsHTML = scenario.groups.map((group, idx) => {
+          const filles = group.students.filter(s => s.sexe === 'F');
+          const garcons = group.students.filter(s => s.sexe === 'M');
+          const avgM = group.students.reduce((sum, s) => sum + (parseFloat(s.scoreM) || 0), 0) / group.students.length;
+          const avgF = group.students.reduce((sum, s) => sum + (parseFloat(s.scoreF) || 0), 0) / group.students.length;
+          
+          return `
+            <div class="bg-white rounded-xl p-4 mb-3 border-2 border-slate-200">
+              <h4 class="font-bold text-sm mb-3 text-purple-600">Groupe ${idx + 1}</h4>
+              
+              <!-- Parité -->
+              <div class="mb-3">
+                <div class="text-xs text-slate-600 mb-1">Parité</div>
+                <div class="flex items-center gap-2">
+                  <div class="flex-1 h-6 bg-slate-100 rounded-lg overflow-hidden flex">
+                    <div class="bg-pink-400 flex items-center justify-center text-white text-xs font-bold" style="width: ${(filles.length / group.students.length) * 100}%">
+                      ${filles.length}F
+                    </div>
+                    <div class="bg-blue-400 flex items-center justify-center text-white text-xs font-bold" style="width: ${(garcons.length / group.students.length) * 100}%">
+                      ${garcons.length}M
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Distribution Maths/Français -->
+              ${group.students.some(s => s.scoreM > 0) ? `
+                <div class="space-y-2">
+                  <div>
+                    <div class="text-xs text-slate-600 mb-1 flex items-center justify-between">
+                      <span>📊 MATHS</span>
+                      <strong class="text-purple-600">${avgM.toFixed(1)}</strong>
+                    </div>
+                    <div class="space-y-1">
+                      ${renderScoreDistribution(group.students, 'scoreM')}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <div class="text-xs text-slate-600 mb-1 flex items-center justify-between">
+                      <span>📚 FRANÇAIS</span>
+                      <strong class="text-indigo-600">${avgF.toFixed(1)}</strong>
+                    </div>
+                    <div class="space-y-1">
+                      ${renderScoreDistribution(group.students, 'scoreF')}
+                    </div>
+                  </div>
+                </div>
+              ` : ''}
+            </div>
+          `;
+        }).join('');
+        
+        statsContent.innerHTML = statsHTML;
+      }
+      
+      function renderScoreDistribution(students, scoreKey) {
+        const scores = students.map(s => parseFloat(s[scoreKey]) || 0);
+        const max = Math.max(...scores);
+        const min = Math.min(...scores);
+        const range = max - min;
+        
+        // Catégoriser : faible (rouge), moyen (orange), fort (vert)
+        const faible = students.filter(s => (parseFloat(s[scoreKey]) || 0) < (min + range * 0.33)).length;
+        const moyen = students.filter(s => {
+          const score = parseFloat(s[scoreKey]) || 0;
+          return score >= (min + range * 0.33) && score < (min + range * 0.67);
+        }).length;
+        const fort = students.filter(s => (parseFloat(s[scoreKey]) || 0) >= (min + range * 0.67)).length;
+        
+        return `
+          <div class="flex items-center gap-1 text-xs">
+            <div class="w-12 text-slate-500">Faible</div>
+            <div class="flex-1 h-4 bg-red-200 rounded" style="width: ${(faible / students.length) * 100}%"></div>
+            <div class="w-8 text-right text-slate-600">${faible}</div>
+          </div>
+          <div class="flex items-center gap-1 text-xs">
+            <div class="w-12 text-slate-500">Moyen</div>
+            <div class="flex-1 h-4 bg-orange-200 rounded" style="width: ${(moyen / students.length) * 100}%"></div>
+            <div class="w-8 text-right text-slate-600">${moyen}</div>
+          </div>
+          <div class="flex items-center gap-1 text-xs">
+            <div class="w-12 text-slate-500">Fort</div>
+            <div class="flex-1 h-4 bg-green-200 rounded" style="width: ${(fort / students.length) * 100}%"></div>
+            <div class="w-8 text-right text-slate-600">${fort}</div>
+          </div>
+        `;
+      }
+      
+      // ═══════════════════════════════════════════════════════════════
+      //  DRAG & DROP
+      // ═══════════════════════════════════════════════════════════════
+      
+      function enableDragAndDrop(scenario) {
+        const studentCards = document.querySelectorAll('.student-card');
+        let draggedElement = null;
+        
+        studentCards.forEach(card => {
+          card.addEventListener('dragstart', (e) => {
+            draggedElement = card;
+            card.style.opacity = '0.5';
+          });
+          
+          card.addEventListener('dragend', (e) => {
+            card.style.opacity = '1';
+          });
+          
+          card.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            card.classList.add('border-purple-500', 'bg-purple-50');
+          });
+          
+          card.addEventListener('dragleave', (e) => {
+            card.classList.remove('border-purple-500', 'bg-purple-50');
+          });
+          
+          card.addEventListener('drop', (e) => {
+            e.preventDefault();
+            card.classList.remove('border-purple-500', 'bg-purple-50');
+            
+            if (draggedElement && draggedElement !== card) {
+              const fromGroupId = parseInt(draggedElement.dataset.groupId);
+              const toGroupId = parseInt(card.dataset.groupId);
+              const fromStudentId = draggedElement.dataset.studentId;
+              const toStudentId = card.dataset.studentId;
+              
+              // Effectuer le swap
+              swapStudents(scenario, fromGroupId, fromStudentId, toGroupId, toStudentId);
+            }
+          });
+        });
+      }
+      
+      // ═══════════════════════════════════════════════════════════════
+      //  BOUTONS DE SWAP
+      // ═══════════════════════════════════════════════════════════════
+      
+      function enableSwapButtons(scenario) {
+        const swapButtons = document.querySelectorAll('.swap-btn');
+        
+        swapButtons.forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const fromGroup = parseInt(btn.dataset.fromGroup);
+            const toGroup = parseInt(btn.dataset.toGroup);
+            const studentIdx = parseInt(btn.dataset.studentIdx);
+            
+            // Trouver un élève du même sexe dans le groupe cible
+            const student = scenario.groups[fromGroup].students[studentIdx];
+            const targetGroup = scenario.groups[toGroup];
+            const sameGenderStudent = targetGroup.students.find(s => s.sexe === student.sexe);
+            
+            if (sameGenderStudent) {
+              swapStudents(scenario, fromGroup, student.id, toGroup, sameGenderStudent.id);
+            } else {
+              alert(`Aucun élève de même sexe (${student.sexe}) trouvé dans le groupe ${toGroup + 1}`);
+            }
+          });
+        });
+      }
+      
+      // ═══════════════════════════════════════════════════════════════
+      //  FONCTION DE SWAP
+      // ═══════════════════════════════════════════════════════════════
+      
+      function swapStudents(scenario, fromGroupIdx, fromStudentId, toGroupIdx, toStudentId) {
+        const fromGroup = scenario.groups[fromGroupIdx];
+        const toGroup = scenario.groups[toGroupIdx];
+        
+        const fromStudentIdx = fromGroup.students.findIndex(s => s.id === fromStudentId);
+        const toStudentIdx = toGroup.students.findIndex(s => s.id === toStudentId);
+        
+        if (fromStudentIdx === -1 || toStudentIdx === -1) {
+          console.error('Élèves non trouvés pour le swap');
+          return;
+        }
+        
+        // Échanger les élèves
+        const temp = fromGroup.students[fromStudentIdx];
+        fromGroup.students[fromStudentIdx] = toGroup.students[toStudentIdx];
+        toGroup.students[toStudentIdx] = temp;
+        
+        // Re-rendre le contenu
+        renderScenarioContent(scenario);
+      }
+      
+      // Event listeners
+      document.getElementById('btn-back-to-config').addEventListener('click', () => {
+        comparisonPanel.remove();
+        container.style.display = 'flex';
+      });
+      
+      document.getElementById('btn-prev-scenario').addEventListener('click', () => {
+        if (currentScenarioIndex > 0) {
+          currentScenarioIndex--;
+          renderCurrentScenario();
+        }
+      });
+      
+      document.getElementById('btn-next-scenario').addEventListener('click', () => {
+        if (currentScenarioIndex < validatedScenarios.length - 1) {
+          currentScenarioIndex++;
+          renderCurrentScenario();
+        }
+      });
+      
+      document.getElementById('btn-regenerate-all').addEventListener('click', async () => {
+        if (confirm('Régénérer tous les scénarios ?')) {
+          comparisonPanel.remove();
+          container.style.display = 'flex';
+          // Déclencher la régénération
+          document.getElementById('btn-generate-all').click();
+        }
+      });
+      
+      document.getElementById('btn-validate-scenario').addEventListener('click', () => {
+        const scenario = validatedScenarios[currentScenarioIndex];
+        alert(`Scénario "${scenario.name}" validé !\n\n(Implémentation de la sauvegarde à venir)`);
+      });
+      
+      // Afficher le premier scénario
+      renderCurrentScenario();
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    //  ANCIENNE FONCTION (maintenant inutilisée)
+    // ═══════════════════════════════════════════════════════════════
+    
+    function displayGroupsResults_OLD(regroupement) {
       console.log('📊 Affichage des résultats pour:', regroupement.name);
       
       // Masquer le formulaire d'édition
@@ -4849,7 +5544,12 @@ window.addEventListener('DOMContentLoaded', (event) => {
       resultsPanel.innerHTML = header + groupsColumns;
       
       // Remplacer le contenu du détail
-      const detailContainer = container.querySelector('.flex-1.bg-white.flex.flex-col');
+      const detailContainer = detailContent.parentElement;
+      if (!detailContainer) {
+        console.error('❌ detailContainer introuvable');
+        return;
+      }
+      
       const existingResults = detailContainer.querySelector('#results-panel');
       if (existingResults) {
         existingResults.remove();
@@ -4858,10 +5558,12 @@ window.addEventListener('DOMContentLoaded', (event) => {
       
       // Event listener pour retour
       const btnCloseResults = resultsPanel.querySelector('#btn-close-results');
-      btnCloseResults.addEventListener('click', () => {
-        resultsPanel.remove();
-        detailForm.classList.remove('hidden');
-      });
+      if (btnCloseResults) {
+        btnCloseResults.addEventListener('click', () => {
+          resultsPanel.remove();
+          detailForm.classList.remove('hidden');
+        });
+      }
     }
     
     // Initialisation
