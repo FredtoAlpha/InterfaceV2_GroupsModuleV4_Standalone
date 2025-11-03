@@ -79,18 +79,37 @@
 
       console.log('🚀 Initialisation TriptychGroupsModule');
 
+      // ✅ BLOC 2 FIX : Résoudre d'abord les classes et vérifier qu'elles existent
+      const availableClasses = this.resolveAvailableClasses();
+
+      // ❌ BLOQUER si pas de données - Ne pas utiliser de fallback silencieux
+      if (!availableClasses || availableClasses.length === 0) {
+        console.error('🚨 BLOCAGE V4 : Aucune donnée de classe disponible');
+        this.renderBlockedInterface('❌ Module Groupes V4 - Données non chargées\n\n' +
+          'Cause probable:\n' +
+          '1. Les données GROUPS_MODULE_V4_DATA n\'ont pas été injectées\n' +
+          '2. Ou google.script.run n\'a pas exécuté getGroupsModuleV4Data()\n\n' +
+          'Vérifications:\n' +
+          '• InterfaceV2.html lignes 1493-1516 : Injection GROUPS_MODULE_V4_DATA?\n' +
+          '• Code.js : Fonction getGroupsModuleV4Data() retourne-t-elle des classes?\n' +
+          '• Console navigateur : window.GROUPS_MODULE_V4_DATA === ' +
+          (typeof windowRef.GROUPS_MODULE_V4_DATA));
+        return; // ✅ STOP - Ne pas continuer sans données
+      }
+
       this.state = {
         scenario: 'needs',
         distributionMode: 'heterogeneous',
         regroupementCount: 2,
         regroupements: [],
-        availableClasses: this.resolveAvailableClasses(),
+        availableClasses: availableClasses,
         generationLog: []
       };
 
       this.ensureRegroupementPool();
       this.cacheDom();
       this.bindStaticEvents();
+      this.bindGenerationEvents(); // ✅ BLOC 3 FIX : Écouter les résultats de génération
       this.renderAll();
 
       console.log('✅ TriptychGroupsModule initialisé avec succès');
@@ -643,6 +662,118 @@
       }
 
       return { valid: true };
+    }
+
+    /**
+     * ✅ BLOC 2 FIX : Affiche une interface verrouillée si données manquent
+     * @param {string} message - Message à afficher
+     */
+    renderBlockedInterface(message) {
+      if (!this.root) return;
+
+      this.root.innerHTML = `
+        <div style="
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          height: 100%;
+          background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+          padding: 40px;
+          text-align: center;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        ">
+          <div style="
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            max-width: 600px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+          ">
+            <h2 style="
+              color: #dc2626;
+              margin: 0 0 15px 0;
+              font-size: 24px;
+            ">⚠️ Module verrouillé</h2>
+            <pre style="
+              background: #1f2937;
+              color: #10b981;
+              padding: 20px;
+              border-radius: 8px;
+              white-space: pre-wrap;
+              word-wrap: break-word;
+              font-size: 13px;
+              line-height: 1.6;
+              margin: 20px 0;
+              text-align: left;
+              overflow-x: auto;
+            ">${this.escapeHtml(message)}</pre>
+            <p style="
+              color: #666;
+              font-size: 14px;
+              margin: 20px 0 0 0;
+            ">Vérifiez la console navigateur (F12) pour plus de détails.</p>
+          </div>
+        </div>
+      `;
+    }
+
+    /**
+     * ✅ BLOC 3 FIX : Écoute les résultats de génération du loader
+     * et réinjecte les résultats dans l'interface
+     */
+    bindGenerationEvents() {
+      if (!this.root) return;
+
+      // Écouteur pour les résultats de génération réussie
+      this.root.addEventListener('groups:generated', (event) => {
+        const detail = event.detail;
+
+        if (!detail || !detail.success) {
+          console.error('❌ Génération échouée:', detail?.message);
+          this.appendLog(`❌ Erreur: ${detail?.message || 'Génération échouée'}`);
+          return;
+        }
+
+        // ✅ Réinjecter les résultats
+        this.generationResults = detail.results;
+        this.appendLog('✅ Génération réussie!');
+
+        // Afficher détails regroupement par regroupement
+        if (Array.isArray(detail.results)) {
+          detail.results.forEach((result) => {
+            const groupCount = result.groups?.length || 0;
+            const studentsTotal = result.groups?.reduce((sum, g) => sum + (g.students?.length || 0), 0) || 0;
+            this.appendLog(`   📌 ${result.regroupement}: ${groupCount} groupe(s) • ${studentsTotal} élève(s)`);
+          });
+        }
+
+        // Rafraîchir le résumé avec les stats
+        this.renderSummary();
+      });
+
+      // Écouteur pour les erreurs de génération
+      this.root.addEventListener('groups:error', (event) => {
+        const detail = event.detail;
+        console.error('❌ Erreur groups:error:', detail);
+        this.appendLog(`❌ Erreur génération: ${detail?.message || 'Erreur inconnue'}`);
+      });
+
+      console.log('✅ Event listeners génération attachés au triptyque');
+    }
+
+    /**
+     * Échappe le HTML pour l'affichage en <pre>
+     */
+    escapeHtml(text) {
+      const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+      };
+      return (text || '').replace(/[&<>"']/g, m => map[m]);
     }
   }
 

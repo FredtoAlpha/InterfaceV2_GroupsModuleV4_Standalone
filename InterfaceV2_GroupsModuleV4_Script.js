@@ -84,11 +84,32 @@
             trRoot.addEventListener('groups:generate', (event) => {
               console.log('🚀 Event groups:generate reçu avec payload:', event.detail);
 
-              if (typeof windowRef.GroupsAlgorithmV4 === 'undefined') {
-                console.error('❌ GroupsAlgorithmV4 non disponible');
-                console.error('   ➜ Vérifier inclusion GroupsAlgorithmV4_Distribution.js');
+              // ✅ BLOC 4 FIX : Test robuste de l'API algorithme
+              if (!windowRef.GroupsAlgorithmV4 || typeof windowRef.GroupsAlgorithmV4 !== 'function') {
+                console.error('❌ GroupsAlgorithmV4 non disponible ou non constructible');
+                console.error('   Détails API:', {
+                  classExists: typeof windowRef.GroupsAlgorithmV4,
+                  isFunction: typeof windowRef.GroupsAlgorithmV4 === 'function',
+                  hasGenerateMethod: windowRef.GroupsAlgorithmV4?.prototype?.generateGroups ? 'oui' : 'non'
+                });
+                console.error('   ➜ Vérifier inclusion GroupsAlgorithmV4_Distribution.js (ligne 1468-1470 InterfaceV2.html)');
                 trRoot.dispatchEvent(new CustomEvent('groups:error', {
-                  detail: { message: 'Algorithme non disponible' }
+                  detail: { message: 'Algorithme non disponible - Vérifiez inclusion GroupsAlgorithmV4_Distribution.js' }
+                }));
+                return;
+              }
+
+              // Test que l'API attendue existe
+              try {
+                const testAlgo = new windowRef.GroupsAlgorithmV4();
+                if (typeof testAlgo.generateGroups !== 'function') {
+                  throw new Error('generateGroups() n\'existe pas sur GroupsAlgorithmV4');
+                }
+                console.log('✅ GroupsAlgorithmV4 API validée');
+              } catch (testError) {
+                console.error('❌ Erreur validation API GroupsAlgorithmV4:', testError);
+                trRoot.dispatchEvent(new CustomEvent('groups:error', {
+                  detail: { message: 'API Algorithme invalide: ' + testError.message }
                 }));
                 return;
               }
