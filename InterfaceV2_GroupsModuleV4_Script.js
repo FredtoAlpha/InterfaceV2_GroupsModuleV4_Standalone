@@ -78,7 +78,7 @@
           this.triptyque = new windowRef.TriptychGroupsModule(trRoot);
           console.log('✅ TriptychGroupsModule instancié');
 
-          // ✅ ORDRE 3 FIX : Écouter l'événement groups:generate
+          // ✅ ÉTAPE 3 FIX : Écouter l'événement groups:generate
           // et connecter au moteur GroupsAlgorithmV4
           if (trRoot) {
             trRoot.addEventListener('groups:generate', (event) => {
@@ -94,34 +94,93 @@
               }
 
               try {
-                // Instancier l'algorithme et générer
-                const algorithm = new windowRef.GroupsAlgorithmV4();
-                const result = algorithm.generateGroups(event.detail);
+                // ✅ Transformer le payload du triptyque en payload algorithme
+                const triptychPayload = event.detail;
+                const regroupements = triptychPayload.regroupements || [];
 
-                if (result.success) {
-                  console.log('✅ Génération réussie');
-                  console.log('   Passes:', result.passes?.length || 0);
-                  console.log('   Stats:', result.statistics);
+                // Générer pour chaque regroupement
+                const results = regroupements.map((regroupement) => {
+                  console.log(`📋 Traitement du regroupement: ${regroupement.name}`);
 
-                  // Retourner les résultats au triptyque
-                  trRoot.dispatchEvent(new CustomEvent('groups:generated', {
-                    detail: result
-                  }));
-                } else {
-                  console.error('❌ Génération échouée:', result.error);
-                  trRoot.dispatchEvent(new CustomEvent('groups:error', {
-                    detail: { message: result.error }
-                  }));
-                }
+                  // Récupérer les élèves pour ce regroupement
+                  let students = [];
+                  (regroupement.classes || []).forEach((className) => {
+                    const classStudents = windowRef.GROUPS_MODULE_V4_DATA?.eleves?.[className] || [];
+                    students = students.concat(classStudents);
+                  });
+
+                  console.log(`   Élèves: ${students.length}`);
+
+                  // Créer payload algorithme
+                  const algoPayload = {
+                    students: students,
+                    scenario: triptychPayload.scenario || 'needs',
+                    distributionMode: triptychPayload.mode || 'heterogeneous',
+                    numGroups: regroupement.groupCount || 3
+                  };
+
+                  // Instancier l'algorithme et générer
+                  const algorithm = new windowRef.GroupsAlgorithmV4();
+                  const result = algorithm.generateGroups(algoPayload);
+
+                  return {
+                    regroupement: regroupement.name,
+                    ...result
+                  };
+                });
+
+                // ✅ Retourner les résultats au triptyque
+                console.log('✅ Génération réussie pour', results.length, 'regroupements');
+                trRoot.dispatchEvent(new CustomEvent('groups:generated', {
+                  detail: {
+                    success: true,
+                    results: results,
+                    summary: {
+                      regroupementCount: regroupements.length,
+                      scenario: triptychPayload.scenario,
+                      mode: triptychPayload.mode
+                    },
+                    timestamp: new Date().toISOString()
+                  }
+                }));
               } catch (error) {
                 console.error('❌ Exception génération:', error);
                 trRoot.dispatchEvent(new CustomEvent('groups:error', {
-                  detail: { message: error.message }
+                  detail: { message: error.message, stack: error.stack }
                 }));
               }
             });
 
             console.log('✅ Event listener groups:generate attaché');
+
+            // ✅ ÉTAPE 7 : Brancher les sauvegardes
+            // Écouteur pour sauvegarde brouillon
+            trRoot.addEventListener('groups:save-draft', (event) => {
+              console.log('💾 Sauvegarde brouillon demandée');
+              const regroupements = event.detail;
+
+              if (typeof google !== 'undefined' && google.script?.run?.saveCacheData) {
+                google.script.run.saveCacheData('groups_v4_draft', JSON.stringify(regroupements));
+                console.log('✅ Brouillon sauvegardé dans cache');
+              } else {
+                console.warn('⚠️ google.script.run non disponible');
+              }
+            });
+
+            // Écouteur pour sauvegarde finale
+            trRoot.addEventListener('groups:save-final', (event) => {
+              console.log('📦 Sauvegarde finale demandée');
+              const regroupements = event.detail;
+
+              if (typeof google !== 'undefined' && google.script?.run?.saveWithProgressINT) {
+                google.script.run.saveWithProgressINT('groups_v4_final', regroupements);
+                console.log('✅ Données finales sauvegardées');
+              } else {
+                console.warn('⚠️ google.script.run non disponible');
+              }
+            });
+
+            console.log('✅ Event listeners sauvegardes attachés');
           }
         } else {
           console.error('❌ TriptychGroupsModule non disponible');

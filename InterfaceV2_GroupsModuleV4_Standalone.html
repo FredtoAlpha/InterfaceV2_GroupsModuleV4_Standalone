@@ -544,8 +544,50 @@
 
   <?!= include('InterfaceV2_GroupsModuleV4_Script') ?>
 
+  <!-- ✅ Charger l'algorithme de distribution V4 AVANT le triptyque -->
+  <?!= include('GroupsAlgorithmV4_Distribution') ?>
+
   <!-- ✅ FIX #2 : Charger le triptyque -->
   <?!= include('InterfaceV4_Triptyque_Logic') ?>
+
+  <!-- ========== EXPOSITION GLOBALE DE GROUPS_MODULE_V4_DATA (DÉVELOPPEMENT) ========== -->
+  <script>
+  // Pour le développement/test: Charger les données depuis le serveur ou utiliser des données fictives
+  (function() {
+    const windowRef = typeof globalThis !== 'undefined' ? globalThis : window;
+
+    // Helper pour données de test
+    windowRef.GROUPS_MODULE_V4_DATA = {
+      classes: [
+        { id: '6°1', label: '6°1', studentCount: 24 },
+        { id: '6°2', label: '6°2', studentCount: 25 },
+        { id: '5°1', label: '5°1', studentCount: 23 },
+        { id: '5°2', label: '5°2', studentCount: 24 }
+      ],
+      eleves: {
+        '6°1': [
+          { id: '6-1-001', nom: 'Dupont', prenom: 'Anne', classe: '6°1', lv2: 'ESP', option: 'CHAV', sexe: 'F' },
+          { id: '6-1-002', nom: 'Martin', prenom: 'Baptiste', classe: '6°1', lv2: 'ITA', option: 'CHAV', sexe: 'M' }
+        ],
+        '6°2': [],
+        '5°1': [],
+        '5°2': []
+      },
+      scenarios: {
+        needs: { id: 'needs', title: 'Besoins', description: 'Équilibrer les besoins' },
+        lv2: { id: 'lv2', title: 'LV2', description: 'Rassembler selon LV2' },
+        options: { id: 'options', title: 'Options', description: 'Regroupements d\'options' }
+      },
+      modes: {
+        heterogeneous: { id: 'heterogeneous', title: 'Hétérogène', description: 'Groupes équilibrés' },
+        homogeneous: { id: 'homogeneous', title: 'Homogène', description: 'Groupes homogènes' }
+      },
+      metadata: { version: '4.0', classCount: 4, studentCount: 2, source: 'Standalone Test' }
+    };
+
+    console.log('✅ GROUPS_MODULE_V4_DATA prêtes (mode test/développement)');
+  })();
+  </script>
 
   <script>
     // ✅ Initialiser le triptyque si l'élément existe

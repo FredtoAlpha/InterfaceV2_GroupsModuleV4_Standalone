@@ -252,15 +252,23 @@
             return;
           }
           this.appendLog('🚀 Génération lancée pour tous les regroupements…');
-          const payload = this.state.regroupements.map((reg) => ({
-            id: reg.id,
-            name: reg.name,
-            classes: reg.classes,
-            groupCount: reg.groupCount
-          }));
+
+          // ✅ ÉTAPE 3 : Payload complet avec scénario et mode
+          const payload = {
+            regroupements: this.state.regroupements.map((reg) => ({
+              id: reg.id,
+              name: reg.name,
+              classes: reg.classes,
+              groupCount: reg.groupCount
+            })),
+            scenario: this.state.scenario,
+            mode: this.state.distributionMode,
+            timestamp: new Date().toISOString()
+          };
+
           const event = new CustomEvent('groups:generate', { detail: payload });
           this.root.dispatchEvent(event);
-          this.appendLog('✅ Données prêtes à être transmises au moteur de répartition.');
+          this.appendLog('✅ Données prêtes : Scénario=' + payload.scenario + ', Mode=' + payload.mode + ', Regroupements=' + payload.regroupements.length);
         });
       }
 

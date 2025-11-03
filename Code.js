@@ -1299,9 +1299,188 @@ function include(filename) {
   }
 }
 
+/**
+ * ✅ ÉTAPE 8 : Valider la détection des classes FIN
+ * Fonction pour vérifier que les classes suffixées FIN sont correctement détectées
+ */
+function validateGroupsV4FINDetection() {
+  try {
+    const data = getGroupsModuleV4Data();
+    const finClasses = data.classes.filter(cls => cls.isFIN);
+
+    console.log('🔍 Vérification détection FIN:');
+    console.log('   Classes totales:', data.classes.length);
+    console.log('   Classes FIN:', finClasses.length);
+
+    finClasses.forEach(cls => {
+      const eleveCount = data.eleves[cls.id]?.length || 0;
+      console.log(`   ✅ ${cls.id}: ${eleveCount} élèves`);
+    });
+
+    return {
+      success: true,
+      totalClasses: data.classes.length,
+      finClasses: finClasses.length,
+      details: finClasses
+    };
+  } catch (e) {
+    console.error('❌ Erreur validation FIN:', e);
+    return { success: false, error: e.toString() };
+  }
+}
+
+/**
+ * ✅ ORDRE 3 : Expose les données V4 pour le Module Groupes Triptyque
+ * Retourne l'objet GROUPS_MODULE_V4_DATA avec:
+ * - classes: liste des classes disponibles
+ * - eleves: dictionnaire des élèves par classe
+ * - scenarios: dictionnaire des scénarios disponibles
+ * - modes: dictionnaire des modes de distribution
+ * - metadata: informations sur les données
+ */
+function getGroupsModuleV4Data() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+    // 1. Récupérer tous les élèves
+    const elevesData = getElevesData();
+
+    // 2. Créer la liste des classes
+    const classes = [];
+    const elevesByClass = {};
+
+    elevesData.forEach(function(classGroup) {
+      const className = classGroup.classe || '';
+      if (className && className.trim()) {
+        classes.push({
+          id: className,
+          label: className,
+          studentCount: classGroup.eleves.length || 0
+        });
+
+        // ✅ ÉTAPE 4 : Normaliser les élèves avec validation stricte
+        elevesByClass[className] = (classGroup.eleves || []).map(function(eleve, index) {
+          // Normaliser et valider les champs obligatoires
+          const normalizedEleve = {
+            id: (eleve.id || '').trim() || `${className}-${index}`,
+            nom: (eleve.nom || '').trim() || `Élève${index + 1}`,
+            prenom: (eleve.prenom || '').trim() || '',
+            classe: className,
+            lv2: (eleve.lv2 || '').trim() || '',
+            option: (eleve.option || '').trim() || '',
+            sexe: (eleve.sexe || '').trim() || '',
+            besoin: (eleve.besoin || '').trim() || '',
+            profil: (eleve.profil || '').trim() || ''
+          };
+
+          // ✅ Validation : champs obligatoires
+          if (!normalizedEleve.id || normalizedEleve.id.length === 0) {
+            console.warn(`⚠️ Élève sans ID dans ${className}:`, eleve);
+          }
+          if (!normalizedEleve.nom || normalizedEleve.nom.length === 0) {
+            console.warn(`⚠️ Élève sans nom dans ${className}:`, eleve);
+          }
+          if (!normalizedEleve.classe || normalizedEleve.classe.length === 0) {
+            console.warn(`⚠️ Élève sans classe:`, eleve);
+          }
+
+          return normalizedEleve;
+        });
+      }
+    });
+
+    // 3. Scénarios disponibles
+    const scenarios = {
+      needs: {
+        id: 'needs',
+        title: 'Besoins',
+        description: "Équilibrer les besoins spécifiques"
+      },
+      lv2: {
+        id: 'lv2',
+        title: 'LV2',
+        description: "Rassembler selon la langue vivante 2"
+      },
+      options: {
+        id: 'options',
+        title: 'Options',
+        description: "Créer des regroupements autour des options"
+      }
+    };
+
+    // 4. Modes de distribution
+    const modes = {
+      heterogeneous: {
+        id: 'heterogeneous',
+        title: 'Hétérogène',
+        description: "Groupes équilibrés et mixtes"
+      },
+      homogeneous: {
+        id: 'homogeneous',
+        title: 'Homogène',
+        description: "Groupes basés sur des profils similaires"
+      }
+    };
+
+    // 5. Métadonnées
+    const metadata = {
+      timestamp: new Date().toISOString(),
+      version: '4.0',
+      classCount: classes.length,
+      studentCount: Object.values(elevesByClass).reduce(function(sum, arr) { return sum + arr.length; }, 0),
+      source: 'Apps Script - Code.gs'
+    };
+
+    return {
+      classes: classes,
+      eleves: elevesByClass,
+      scenarios: scenarios,
+      modes: modes,
+      metadata: metadata
+    };
+  } catch (e) {
+    console.error('❌ Erreur getGroupsModuleV4Data:', e);
+    return {
+      classes: [],
+      eleves: {},
+      scenarios: {},
+      modes: {},
+      metadata: { error: e.toString() }
+    };
+  }
+}
+
 /*************************** doGet *******************************/
 function doGet(e) {
   // ✅ CORRECTION : Utiliser createTemplateFromFile pour évaluer les <?!= include() ?>
+
+  // ✅ FIX : Gérer le paramètre ?file= pour servir les fichiers V4 bruts
+  if (e.parameter && e.parameter.file) {
+    const fileName = e.parameter.file;
+
+    // Fichiers autorisés à être servis
+    const allowedFiles = [
+      'InterfaceV4_Triptyque_Logic.js',
+      'GroupsAlgorithmV4_Distribution.js',
+      'InterfaceV2_GroupsModuleV4_Script.js'
+    ];
+
+    if (allowedFiles.includes(fileName)) {
+      try {
+        const content = HtmlService.createHtmlOutputFromFile(fileName).getContent();
+        return HtmlService.createHtmlOutput(content)
+          .setMimeType(HtmlService.MimeType.JAVASCRIPT);
+      } catch (error) {
+        return HtmlService.createHtmlOutput(`❌ Erreur: Fichier "${fileName}" non trouvé`)
+          .setMimeType(HtmlService.MimeType.TEXT);
+      }
+    } else {
+      return HtmlService.createHtmlOutput(`❌ Erreur: Fichier "${fileName}" non autorisé`)
+        .setMimeType(HtmlService.MimeType.TEXT);
+    }
+  }
+
+  // Mode normal : Servir l'interface complète
   const template = HtmlService.createTemplateFromFile('InterfaceV2');
   return template.evaluate()
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)

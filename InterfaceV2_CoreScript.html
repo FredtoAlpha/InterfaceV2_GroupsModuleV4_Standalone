@@ -3699,13 +3699,13 @@ window.addEventListener('DOMContentLoaded', (event) => {
 
       console.log('🚀 Clic sur bouton Groupes - Activation Module V4');
 
-      // Attendre que le module V4 soit disponible
-      if (window.ModuleGroupsV4) {
+      // ✅ ÉTAPE 2 : Utiliser la fonction helper pour ouvrir la V4
+      if (typeof window.openModuleGroupsV4 === 'function') {
         console.log('✅ Module V4 trouvé - ouverture');
-        window.ModuleGroupsV4.open();
+        window.openModuleGroupsV4();
       } else {
-        console.warn('⚠️ Module V4 non disponible - fallback vers GroupsModuleComplete');
-        openGroupsModuleComplete();
+        console.warn('⚠️ Module V4 non disponible - fallback vers openGroupsInterface()');
+        openGroupsInterface('creator');
       }
     });
 
@@ -7408,9 +7408,21 @@ function notifyGroupsChanged() {
 
 // 1. Fonction unifiée openGroupsInterface - utilise le nouveau GroupsModuleComplete (modal intégrée)
 function openGroupsInterface(tab = 'creator') {
-  console.log('🚀 Ouverture de l\'interface des groupes via GroupsModuleComplete...');
+  console.log('🚀 Ouverture de l\'interface des groupes...');
 
-  // Vérifier si GroupsModuleComplete est disponible (groupsModuleComplete.html)
+  // ✅ ÉTAPE 2 : Priorité 1 - Utiliser la nouvelle V4 (triptyque)
+  if (typeof window !== 'undefined' && typeof window.openModuleGroupsV4 === 'function') {
+    try {
+      window.openModuleGroupsV4();
+      console.log('✅ Module V4 (triptyque) ouvert avec succès');
+      return;
+    } catch (error) {
+      console.warn('⚠️ Erreur ouverture Module V4:', error.message);
+    }
+  }
+
+  // Priorité 2 - Fallback vers GroupsModuleComplete (ancien)
+  console.log('📋 Fallback vers GroupsModuleComplete...');
   if (typeof window !== 'undefined' && window.GroupsModuleComplete && typeof window.GroupsModuleComplete.open === 'function') {
     try {
       window.GroupsModuleComplete.open();
@@ -7421,8 +7433,8 @@ function openGroupsInterface(tab = 'creator') {
     }
   }
 
-  // FALLBACK : Si GroupsModuleComplete n'est pas disponible, utiliser l'ancienne interface popup
-  console.warn('⚠️ GroupsModuleComplete non disponible, fallback vers interface popup...');
+  // FALLBACK 3 : Si GroupsModuleComplete n'est pas disponible, utiliser l'ancienne interface popup
+  console.warn('⚠️ Modules V4 et GroupsModuleComplete non disponibles, fallback vers interface popup...');
   google.script.run
     .withSuccessHandler(function(html) {
       try {

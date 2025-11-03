@@ -1458,6 +1458,118 @@
 
   <?!= include('InterfaceV2_GroupsScript'); ?>
 
+<!-- ========== BUNDLES SERVEUR POUR MODULE GROUPES V4 ========== -->
+<!-- Inclusion de la logique triptyque V4 (remplace <script src> distant) -->
+<script>
+<?!= include('InterfaceV4_Triptyque_Logic'); ?>
+</script>
+
+<!-- Inclusion de l'algorithme de distribution V4 (remplace <script src> distant) -->
+<script>
+<?!= include('GroupsAlgorithmV4_Distribution'); ?>
+</script>
+
+<!-- Inclusion du loader du module V4 (remplace <script src> distant) -->
+<script>
+<?!= include('InterfaceV2_GroupsModuleV4_Script'); ?>
+</script>
+
+<!-- ========== EXPOSITION GLOBALE DE GROUPS_MODULE_V4_DATA ========== -->
+<!-- Récupère et expose les données V4 depuis le serveur -->
+<script>
+(function() {
+  'use strict';
+
+  // Détection robuste de l'environnement
+  const windowRef = typeof globalThis !== 'undefined'
+    ? globalThis
+    : typeof window !== 'undefined'
+      ? window
+      : typeof self !== 'undefined'
+        ? self
+        : {};
+
+  // Appeler la fonction serveur pour récupérer les données V4
+  google.script.run.withSuccessHandler(function(data) {
+    // Exposer globalement pour que TriptychGroupsModule les trouve
+    windowRef.GROUPS_MODULE_V4_DATA = data;
+    console.log('✅ GROUPS_MODULE_V4_DATA chargées:', {
+      classes: data.classes?.length || 0,
+      students: Object.keys(data.eleves || {}).length,
+      metadata: data.metadata
+    });
+
+    // Déclencher un événement pour que le triptyque sache que les données sont prêtes
+    const event = new CustomEvent('groups:data-ready', { detail: data });
+    if (typeof document !== 'undefined') {
+      document.dispatchEvent(event);
+    }
+  }).withFailureHandler(function(error) {
+    console.error('❌ Erreur chargement GROUPS_MODULE_V4_DATA:', error);
+    windowRef.GROUPS_MODULE_V4_DATA = {
+      classes: [],
+      eleves: {},
+      scenarios: {},
+      modes: {},
+      metadata: { error: error.toString() }
+    };
+  }).getGroupsModuleV4Data();
+})();
+</script>
+
+<!-- ========== INITIALISATION DU TRIPTYQUE AU DÉMARRAGE ========== -->
+<!-- Assurer que le triptyque est prêt quand l'utilisateur le demande -->
+<script>
+(function() {
+  'use strict';
+
+  // ✅ ÉTAPE 5 : Initialisation triptyque au démarrage
+  const windowRef = typeof globalThis !== 'undefined' ? globalThis : window;
+
+  // Helper : attendre que GROUPS_MODULE_V4_DATA soit disponible
+  let dataCheckAttempts = 0;
+  const maxAttempts = 50; // 5 secondes à 100ms par essai
+
+  function checkDataReady() {
+    dataCheckAttempts++;
+
+    if (windowRef.GROUPS_MODULE_V4_DATA && windowRef.GROUPS_MODULE_V4_DATA.classes?.length > 0) {
+      console.log('✅ GROUPS_MODULE_V4_DATA prêtes :', windowRef.GROUPS_MODULE_V4_DATA.classes.length, 'classes');
+      // Les données sont prêtes, le triptyque peut être ouvert quand l'utilisateur le demande
+      return true;
+    }
+
+    if (dataCheckAttempts >= maxAttempts) {
+      console.warn('⚠️ GROUPS_MODULE_V4_DATA non prête après', (maxAttempts * 100), 'ms');
+      return false;
+    }
+
+    // Réessayer
+    setTimeout(checkDataReady, 100);
+  }
+
+  // Au chargement complet du DOM
+  if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function() {
+        console.log('📋 DOMContentLoaded : Vérification état Module V4');
+        checkDataReady();
+      });
+    } else {
+      console.log('📋 DOM déjà chargé : Vérification état Module V4');
+      checkDataReady();
+    }
+  }
+
+  // Également écouter l'événement groups:data-ready
+  if (typeof document !== 'undefined') {
+    document.addEventListener('groups:data-ready', function(e) {
+      console.log('✅ Événement groups:data-ready reçu, Module V4 prêt');
+    });
+  }
+})();
+</script>
+
 <!-- ============================================================ -->
 <!-- TOOLTIPS SYSTEM -->
 <!-- ============================================================ -->
