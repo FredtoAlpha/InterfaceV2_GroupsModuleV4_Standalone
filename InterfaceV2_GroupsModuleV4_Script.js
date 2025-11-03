@@ -77,6 +77,52 @@
           // Créer l'instance du triptyque
           this.triptyque = new windowRef.TriptychGroupsModule(trRoot);
           console.log('✅ TriptychGroupsModule instancié');
+
+          // ✅ ORDRE 3 FIX : Écouter l'événement groups:generate
+          // et connecter au moteur GroupsAlgorithmV4
+          if (trRoot) {
+            trRoot.addEventListener('groups:generate', (event) => {
+              console.log('🚀 Event groups:generate reçu avec payload:', event.detail);
+
+              if (typeof windowRef.GroupsAlgorithmV4 === 'undefined') {
+                console.error('❌ GroupsAlgorithmV4 non disponible');
+                console.error('   ➜ Vérifier inclusion GroupsAlgorithmV4_Distribution.js');
+                trRoot.dispatchEvent(new CustomEvent('groups:error', {
+                  detail: { message: 'Algorithme non disponible' }
+                }));
+                return;
+              }
+
+              try {
+                // Instancier l'algorithme et générer
+                const algorithm = new windowRef.GroupsAlgorithmV4();
+                const result = algorithm.generateGroups(event.detail);
+
+                if (result.success) {
+                  console.log('✅ Génération réussie');
+                  console.log('   Passes:', result.passes?.length || 0);
+                  console.log('   Stats:', result.statistics);
+
+                  // Retourner les résultats au triptyque
+                  trRoot.dispatchEvent(new CustomEvent('groups:generated', {
+                    detail: result
+                  }));
+                } else {
+                  console.error('❌ Génération échouée:', result.error);
+                  trRoot.dispatchEvent(new CustomEvent('groups:error', {
+                    detail: { message: result.error }
+                  }));
+                }
+              } catch (error) {
+                console.error('❌ Exception génération:', error);
+                trRoot.dispatchEvent(new CustomEvent('groups:error', {
+                  detail: { message: error.message }
+                }));
+              }
+            });
+
+            console.log('✅ Event listener groups:generate attaché');
+          }
         } else {
           console.error('❌ TriptychGroupsModule non disponible');
           if (!windowRef.TriptychGroupsModule) {

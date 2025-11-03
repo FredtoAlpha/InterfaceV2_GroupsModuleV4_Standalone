@@ -134,7 +134,9 @@
       console.error('❌ CRITIQUE : Aucune donnée de classe disponible !');
       console.error('   window.STATE.classesData = ', windowRef.STATE?.classesData);
       console.error('   GROUPS_MODULE_V4_DATA = ', windowRef.GROUPS_MODULE_V4_DATA);
-      console.error('   ➜ Injecter GROUPS_MODULE_V4_DATA dans initRepartitionApp() (CoreScript.html)');
+      console.error('   ➜ Phase 1 Fix: Utiliser <?!= include() ?> au lieu de <script src>');
+      console.error('   ➜ Phase 2 Fix: Vérifier injection GROUPS_MODULE_V4_DATA ligne 1436 CoreScript.html');
+      console.error('   ➜ DEFAULT_CLASSES = ', DEFAULT_CLASSES, '(REFUSÉE - ne sera jamais utilisée)');
       this.state.error = '❌ Données classes manquantes - Module V4 non disponible';
       return [];
     }
