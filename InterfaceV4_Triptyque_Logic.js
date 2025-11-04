@@ -299,11 +299,49 @@
       // Bouton de réinitialisation
       if (this.dom.resetBtn) {
         this.dom.resetBtn.addEventListener('click', () => {
+          // ✅ FIX: Vider le log DOM avant de réinitialiser
+          if (this.dom.generationLog) {
+            this.dom.generationLog.innerHTML = '';
+          }
+
           this.state.regroupements = [];
+          this.state.generationLog = [];
+          this.state.lastGenerationResults = null; // ✅ Réinitialiser les résultats de génération
           this.ensureRegroupementPool();
           this.appendLog('🧽 Réinitialisation complète des regroupements.');
           this.renderRegroupements();
           this.renderSummary();
+
+          // ✅ Vider la preview
+          const groupsPreview = this.root.querySelector('#groups-preview');
+          if (groupsPreview) {
+            groupsPreview.innerHTML = '<p style="color: #64748b; padding: 20px; text-align: center;">Aucun groupe généré</p>';
+          }
+        });
+      }
+
+      // ✅ NOUVEAU : Boutons de navigation du carrousel
+      const carouselPrev = this.root.querySelector('#carousel-prev');
+      const carouselNext = this.root.querySelector('#carousel-next');
+
+      if (carouselPrev) {
+        carouselPrev.addEventListener('click', () => {
+          if (!this.state.lastGenerationResults || this.state.lastGenerationResults.length === 0) {
+            return;
+          }
+          this.state.currentCarouselIndex = Math.max(0, (this.state.currentCarouselIndex || 0) - 1);
+          this.renderGenerationPreview();
+        });
+      }
+
+      if (carouselNext) {
+        carouselNext.addEventListener('click', () => {
+          if (!this.state.lastGenerationResults || this.state.lastGenerationResults.length === 0) {
+            return;
+          }
+          const maxIndex = this.state.lastGenerationResults.length - 1;
+          this.state.currentCarouselIndex = Math.min(maxIndex, (this.state.currentCarouselIndex || 0) + 1);
+          this.renderGenerationPreview();
         });
       }
     }
@@ -865,9 +903,22 @@
         if (Array.isArray(detail.results)) {
           detail.results.forEach((result) => {
             const groupCount = result.groups?.length || 0;
-            const studentsTotal = result.groups?.reduce((sum, g) => sum + (g.students?.length || 0), 0) || 0;
+            const studentsTotal = result.groups?.reduce((sum, g) => sum + (g.length || 0), 0) || 0;
             this.appendLog(`   📌 ${result.regroupement}: ${groupCount} groupe(s) • ${studentsTotal} élève(s)`);
           });
+
+          // ✅ Afficher les statistiques globales de génération
+          const totalGroups = detail.results.reduce((sum, r) => sum + (r.groups?.length || 0), 0);
+          const totalStudents = detail.results.reduce((sum, r) =>
+            sum + (r.groups?.reduce((s, g) => s + (g.length || 0), 0) || 0), 0);
+          this.appendLog(`   📊 Total: ${totalGroups} groupes • ${totalStudents} élèves répartis`);
+
+          // ✅ Stocker les résultats dans l'état pour affichage dans preview
+          this.state.lastGenerationResults = detail.results;
+          this.state.currentCarouselIndex = 0; // Réinitialiser au premier regroupement
+
+          // ✅ Afficher la preview du premier regroupement
+          this.renderGenerationPreview();
         }
 
         // Rafraîchir le résumé avec les stats
@@ -882,6 +933,121 @@
       });
 
       console.log('✅ Event listeners génération attachés au triptyque');
+    }
+
+    /**
+     * ✅ NOUVEAU : Affiche la preview des groupes générés dans la colonne C
+     */
+    renderGenerationPreview() {
+      if (!this.state.lastGenerationResults || !Array.isArray(this.state.lastGenerationResults)) {
+        console.warn('⚠️ Aucun résultat de génération à afficher');
+        return;
+      }
+
+      const currentIndex = this.state.currentCarouselIndex || 0;
+      const currentResult = this.state.lastGenerationResults[currentIndex];
+
+      if (!currentResult) {
+        console.warn('⚠️ Résultat de génération introuvable à l\'index', currentIndex);
+        return;
+      }
+
+      // Afficher le titre du regroupement actuel
+      const carouselTitle = this.root.querySelector('#carousel-current-title');
+      if (carouselTitle) {
+        carouselTitle.textContent = currentResult.regroupement || `Regroupement ${currentIndex + 1}`;
+      }
+
+      // Afficher l'indicateur du carrousel
+      const carouselIndicator = this.root.querySelector('#carousel-indicator');
+      if (carouselIndicator) {
+        carouselIndicator.textContent = `${currentIndex + 1}/${this.state.lastGenerationResults.length}`;
+      }
+
+      // Afficher les groupes dans la preview
+      const groupsPreview = this.root.querySelector('#groups-preview');
+      if (!groupsPreview) return;
+
+      groupsPreview.innerHTML = '';
+
+      if (!currentResult.groups || !Array.isArray(currentResult.groups)) {
+        groupsPreview.innerHTML = '<p style="color: #64748b; padding: 20px; text-align: center;">Aucun groupe généré</p>';
+        return;
+      }
+
+      currentResult.groups.forEach((group, groupIndex) => {
+        const groupColumn = documentRef.createElement('div');
+        groupColumn.className = 'group-column';
+        groupColumn.style.cssText = 'background: white; border: 2px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 12px;';
+
+        const groupHeader = documentRef.createElement('div');
+        groupHeader.style.cssText = 'font-size: 12px; font-weight: 700; color: #64748b; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between;';
+        groupHeader.innerHTML = `<span>Groupe ${groupIndex + 1}</span><span>${group.length || 0} élèves</span>`;
+        groupColumn.appendChild(groupHeader);
+
+        if (Array.isArray(group)) {
+          group.forEach((student) => {
+            const studentItem = documentRef.createElement('div');
+            studentItem.style.cssText = 'padding: 8px; background: #f8fafc; border-radius: 6px; margin-bottom: 6px; font-size: 12px;';
+            const nom = student.nom || '';
+            const prenom = student.prenom || '';
+            const sexe = student.sexe ? `(${student.sexe})` : '';
+            studentItem.textContent = `${nom} ${prenom} ${sexe}`.trim();
+            groupColumn.appendChild(studentItem);
+          });
+        }
+
+        groupsPreview.appendChild(groupColumn);
+      });
+
+      // ✅ Afficher les statistiques du regroupement actuel
+      this.renderGenerationStats(currentResult);
+
+      console.log('✅ Preview de génération affichée pour', currentResult.regroupement);
+    }
+
+    /**
+     * ✅ NOUVEAU : Affiche les statistiques des groupes générés
+     */
+    renderGenerationStats(result) {
+      if (!result || !result.statistics) {
+        console.warn('⚠️ Pas de statistiques disponibles');
+        return;
+      }
+
+      const statsContainer = this.dom.statsContainer;
+      if (!statsContainer) return;
+
+      const stats = result.statistics;
+      const totalGroups = stats.length;
+      const totalStudents = stats.reduce((sum, s) => sum + (s.size || 0), 0);
+      const avgSize = totalGroups > 0 ? Math.round(totalStudents / totalGroups) : 0;
+
+      const totalFemales = stats.reduce((sum, s) => sum + (s.femaleCount || 0), 0);
+      const totalMales = stats.reduce((sum, s) => sum + (s.maleCount || 0), 0);
+      const parityPercent = totalStudents > 0
+        ? Math.round((Math.min(totalFemales, totalMales) / totalStudents) * 200)
+        : 0;
+
+      statsContainer.innerHTML = `
+        <div class="stat-card" style="padding: 12px; background: #f8fafc; border-radius: 8px; text-align: center; margin-bottom: 8px;">
+          <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">Groupes générés</div>
+          <div style="font-size: 20px; font-weight: 700; color: #1e293b;">${totalGroups}</div>
+        </div>
+        <div class="stat-card" style="padding: 12px; background: #f8fafc; border-radius: 8px; text-align: center; margin-bottom: 8px;">
+          <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">Élèves répartis</div>
+          <div style="font-size: 20px; font-weight: 700; color: #1e293b;">${totalStudents}</div>
+        </div>
+        <div class="stat-card" style="padding: 12px; background: #f8fafc; border-radius: 8px; text-align: center; margin-bottom: 8px;">
+          <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">Taille moyenne</div>
+          <div style="font-size: 20px; font-weight: 700; color: #1e293b;">${avgSize}</div>
+        </div>
+        <div class="stat-card" style="padding: 12px; background: #f8fafc; border-radius: 8px; text-align: center; margin-bottom: 8px;">
+          <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">Parité F/M</div>
+          <div style="font-size: 20px; font-weight: 700; color: #1e293b;">${totalFemales}F / ${totalMales}M</div>
+          <div style="font-size: 10px; color: #10b981; margin-top: 4px;">${parityPercent}% équilibré</div>
+        </div>
+      `;
     }
 
     /**
@@ -906,28 +1072,36 @@
   function handleGroupsGenerate(event) {
     const payload = event.detail;
     console.log('🎯 Événement groups:generate reçu:', payload);
-    
+
+    // ✅ FIX: Vérifier la structure du payload
+    if (!payload || !payload.regroupements || !Array.isArray(payload.regroupements)) {
+      console.error('❌ Payload invalide - regroupements manquant ou invalide');
+      alert('Erreur : Le payload de génération est invalide.');
+      return;
+    }
+
     // Vérifier si l'algorithme est disponible
     if (!windowRef.GroupsAlgorithmV4) {
       console.error('❌ GroupsAlgorithmV4 non disponible');
       alert('Erreur : L\'algorithme de génération n\'est pas chargé.');
       return;
     }
-    
+
     // Vérifier si les données élèves sont disponibles
     if (!windowRef.STATE || !windowRef.STATE.classesData) {
       console.error('❌ Données élèves non disponibles');
       alert('Erreur : Les données élèves ne sont pas chargées.');
       return;
     }
-    
+
     // Générer les groupes pour chaque regroupement
     const algo = new windowRef.GroupsAlgorithmV4();
     const results = [];
-    
-    payload.forEach((regroupement) => {
+
+    // ✅ FIX: Itérer sur payload.regroupements au lieu de payload directement
+    payload.regroupements.forEach((regroupement) => {
       console.log(`🔄 Génération pour ${regroupement.name}...`);
-      
+
       // Récupérer les élèves des classes sélectionnées
       const students = [];
       regroupement.classes.forEach((className) => {
@@ -936,31 +1110,49 @@
           students.push(...classData.eleves);
         }
       });
-      
+
       if (students.length === 0) {
         console.warn(`⚠️ Aucun élève trouvé pour ${regroupement.name}`);
         return;
       }
-      
-      // Appeler l'algorithme
+
+      // ✅ FIX: Utiliser scenario et mode depuis le payload au lieu de l'instance
       const result = algo.generateGroups({
         students,
-        groupCount: regroupement.groupCount,
-        scenario: windowRef.__triptychModuleInstance?.state.scenario || 'needs',
-        distributionMode: windowRef.__triptychModuleInstance?.state.distributionMode || 'heterogeneous'
+        numGroups: regroupement.groupCount, // ✅ L'algorithme attend 'numGroups'
+        scenario: payload.scenario || 'needs',
+        distributionMode: payload.mode || 'heterogeneous'
       });
-      
+
       results.push({
         regroupement: regroupement.name,
-        result
+        regroupementId: regroupement.id,
+        groups: result.groups,
+        statistics: result.statistics,
+        alerts: result.alerts
       });
     });
-    
+
     console.log('✅ Génération terminée:', results);
-    
+
     // Déclencher un événement avec les résultats
-    const resultsEvent = new CustomEvent('groups:generated', { detail: results });
-    documentRef.dispatchEvent(resultsEvent);
+    const resultsEvent = new CustomEvent('groups:generated', {
+      detail: {
+        success: results.length > 0,
+        results: results,
+        scenario: payload.scenario,
+        mode: payload.mode,
+        timestamp: payload.timestamp
+      }
+    });
+
+    // ✅ FIX: Dispatcher sur this.root au lieu de documentRef pour que le listener de bindGenerationEvents le reçoive
+    const rootElement = documentRef.querySelector('#groups-module-v4');
+    if (rootElement) {
+      rootElement.dispatchEvent(resultsEvent);
+    } else {
+      documentRef.dispatchEvent(resultsEvent);
+    }
   }
   
   // Auto-initialisation si l'élément existe
