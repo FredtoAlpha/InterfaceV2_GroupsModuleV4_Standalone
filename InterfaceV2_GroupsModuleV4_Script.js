@@ -8,19 +8,13 @@
  * La logique complète réside dans InterfaceV4_Triptyque_Logic.js
  */
 
-(function() {
+(function(global) {
   'use strict';
 
-  // Détection robuste de l'environnement
-  const windowRef = typeof globalThis !== 'undefined'
-    ? globalThis
-    : typeof window !== 'undefined'
-      ? window
-      : typeof self !== 'undefined'
-        ? self
-        : {};
-
-  const documentRef = windowRef.document;
+  // ✅ FIX : Utiliser le paramètre 'global' passé via 'this'
+  // Compatible avec Apps Script, navigateurs, et environnements Node.js
+  const windowRef = global;
+  const documentRef = global.document;
 
   if (!windowRef || !documentRef) {
     console.warn('❌ ModuleGroupsV4Loader: environnement navigateur non détecté');
@@ -314,4 +308,4 @@
 
   console.log('✅ ModuleGroupsV4 loader chargé (', documentRef.querySelectorAll('*').length, 'éléments DOM)');
 
-})(); // Pas de paramètre global - ORDRE 5 compatible
+})(this); // ✅ 'this' = objet global dans tous les environnements

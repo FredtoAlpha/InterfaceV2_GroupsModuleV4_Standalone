@@ -1,6 +1,6 @@
 /**
  * ALGORITHME DE RÉPARTITION V4 - MODULE GROUPES
- * 
+ *
  * Gère:
  * 1. Normalisation & pondération (z-scores)
  * 2. Stratégies Hétérogène vs Homogène
@@ -9,17 +9,12 @@
  * 5. Historique d'ajustements (swaps)
  */
 
-(function() {
+(function(global) {
   'use strict';
 
-  // Détection robuste de l'objet global (sans dépendance à 'global')
-  const windowRef = typeof globalThis !== 'undefined'
-    ? globalThis
-    : typeof window !== 'undefined' 
-      ? window 
-      : typeof self !== 'undefined'
-        ? self
-        : {};
+  // ✅ FIX : Utiliser le paramètre 'global' passé via 'this'
+  // Compatible avec Apps Script, navigateurs, et environnements Node.js
+  const windowRef = global;
 
   class GroupsAlgorithmV4 {
     constructor() {
@@ -531,12 +526,15 @@
     }
   }
 
-  // Exporter la classe
-  windowRef.GroupsAlgorithmV4 = GroupsAlgorithmV4;
+  // ✅ FIX : Export global via le paramètre 'global'
+  // Fonctionne dans Apps Script (this), navigateurs (window), et Node.js (global)
+  global.GroupsAlgorithmV4 = GroupsAlgorithmV4;
 
-  // Export pour modules ES6
+  // Export pour modules ES6 (Node.js, webpack, etc.)
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = GroupsAlgorithmV4;
   }
 
-})(); // Pas de paramètre global
+  console.log('✅ GroupsAlgorithmV4 exporté globalement:', typeof global.GroupsAlgorithmV4);
+
+})(this); // ✅ 'this' = objet global dans tous les environnements
