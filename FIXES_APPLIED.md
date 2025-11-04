@@ -11,33 +11,43 @@
 ### ✅ FIX 1 : Export global compatible Apps Script
 
 **Fichiers modifiés** :
-- `GroupsAlgorithmV4_Distribution.js`
-- `InterfaceV2_GroupsModuleV4_Script.js`
-- `InterfaceV4_Triptyque_Logic.js`
+- `GroupsAlgorithmV4_Distribution.js` - Pattern `(this)` pour export global
+- `InterfaceV2_GroupsModuleV4_Script.js` - Détection `window` pour UI
+- `InterfaceV4_Triptyque_Logic.js` - Détection `window` pour UI
 
-**Changement** :
+**Changement algorithme (n'utilise pas document)** :
 ```javascript
-// ❌ AVANT (ne fonctionnait pas dans Apps Script)
+// ❌ AVANT (objet vide dans Apps Script)
 (function() {
   const windowRef = typeof globalThis !== 'undefined'
     ? globalThis
     : typeof window !== 'undefined'
       ? window
-      : typeof self !== 'undefined'
-        ? self
-        : {};  // Objet vide local
+      : {};  // ❌ Objet vide local
 })();
 
-// ✅ APRÈS (compatible Apps Script, navigateurs, Node.js)
+// ✅ APRÈS (export global via this)
 (function(global) {
-  const windowRef = global;  // 'this' passé comme paramètre
-})(this);  // 'this' = objet global
+  const windowRef = global;
+  global.GroupsAlgorithmV4 = GroupsAlgorithmV4;
+})(this);  // ✅ 'this' = objet global
+```
+
+**Changement fichiers UI (utilisent document)** :
+```javascript
+// ✅ DÉTECTION window/document (code côté client/navigateur)
+(function() {
+  const windowRef = typeof window !== 'undefined'
+    ? window
+    : (typeof globalThis !== 'undefined' ? globalThis : {});
+  const documentRef = typeof document !== 'undefined' ? document : null;
+})();
 ```
 
 **Impact** :
-- ✅ `GroupsAlgorithmV4` est maintenant accessible globalement dans Apps Script
-- ✅ `windowRef`, `documentRef` pointent vers les bons objets globaux
-- ✅ Compatible avec tous les environnements : Apps Script, navigateurs, Node.js
+- ✅ `GroupsAlgorithmV4` accessible globalement (export via `this`)
+- ✅ Fichiers UI accèdent à `window` et `document` côté navigateur
+- ✅ Pas d'erreur "document is not defined"
 
 ---
 
@@ -176,10 +186,11 @@ console.log(typeof algo.generateGroups);
 
 - [x] Syntaxe JavaScript valide (vérifié avec `node --check`)
 - [x] Export global `GroupsAlgorithmV4` accessible
-- [x] Pattern IIFE cohérent dans tous les fichiers
+- [x] Pattern IIFE adapté par type de fichier (algorithme vs UI)
+- [x] Pas d'erreur "document is not defined"
 - [x] Architecture clarifiée (loader vs UI)
 - [x] Pas de duplication d'event listeners
-- [x] Compatible Apps Script, navigateurs, Node.js
+- [x] Compatible navigateurs (fichiers UI tournent côté client)
 
 ---
 
