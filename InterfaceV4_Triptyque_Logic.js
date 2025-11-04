@@ -4,19 +4,13 @@
  * Remplace le système de phases successives
  */
 
-(function() {
+(function(global) {
   'use strict';
 
-  // Détection robuste de l'environnement (sans dépendance à 'global')
-  const windowRef = typeof globalThis !== 'undefined'
-    ? globalThis
-    : typeof window !== 'undefined' 
-      ? window 
-      : typeof self !== 'undefined'
-        ? self
-        : {};
-  
-  const documentRef = windowRef.document;
+  // ✅ FIX : Utiliser le paramètre 'global' passé via 'this'
+  // Compatible avec Apps Script, navigateurs, et environnements Node.js
+  const windowRef = global;
+  const documentRef = global.document;
 
   if (!windowRef || !documentRef) {
     console.warn('❌ TriptychGroupsModule: environnement navigateur non détecté');
@@ -1068,147 +1062,28 @@
   // Exposer globalement
   windowRef.TriptychGroupsModule = TriptychGroupsModule;
 
-  // Gestionnaire d'événement pour la génération
-  function handleGroupsGenerate(event) {
-    const payload = event.detail;
-    console.log('🎯 Événement groups:generate reçu:', payload);
+  // ✅ FIX 2 : SUPPRIMER la duplication du gestionnaire groups:generate
+  // Le gestionnaire est géré par InterfaceV2_GroupsModuleV4_Script.js (loader)
+  // Ce fichier ne gère QUE l'interface triptyque, pas la logique de génération
 
-    // ✅ FIX: Vérifier la structure du payload
-    if (!payload || !payload.regroupements || !Array.isArray(payload.regroupements)) {
-      console.error('❌ Payload invalide - regroupements manquant ou invalide');
-      event.target.dispatchEvent(new CustomEvent('groups:error', {
-        detail: { message: 'Payload invalide - regroupements manquant ou invalide' }
-      }));
-      return;
-    }
-
-    // Vérifier si l'algorithme est disponible
-    if (!windowRef.GroupsAlgorithmV4 || typeof windowRef.GroupsAlgorithmV4 !== 'function') {
-      console.error('❌ GroupsAlgorithmV4 non disponible');
-      console.error('   Détails API:', {
-        classExists: typeof windowRef.GroupsAlgorithmV4,
-        isFunction: typeof windowRef.GroupsAlgorithmV4 === 'function'
-      });
-      event.target.dispatchEvent(new CustomEvent('groups:error', {
-        detail: { message: 'Algorithme non disponible - Vérifiez inclusion GroupsAlgorithmV4_Distribution.js' }
-      }));
-      return;
-    }
-
-    console.log('📊 Sources de données disponibles:', {
-      hasSTATE: !!windowRef.STATE,
-      hasClassesData: !!windowRef.STATE?.classesData,
-      hasGROUPS_MODULE_V4_DATA: !!windowRef.GROUPS_MODULE_V4_DATA,
-      hasElevesInGROUPS: !!windowRef.GROUPS_MODULE_V4_DATA?.eleves
-    });
-
-    try {
-      // Générer les groupes pour chaque regroupement
-      const algo = new windowRef.GroupsAlgorithmV4();
-      const results = [];
-
-      // ✅ FIX: Itérer sur payload.regroupements au lieu de payload directement
-      payload.regroupements.forEach((regroupement) => {
-        console.log(`🔄 Génération pour ${regroupement.name}...`);
-
-        // ✅ AMÉLIORATION : Récupérer les élèves depuis la source appropriée
-        const students = [];
-        regroupement.classes.forEach((className) => {
-          console.log(`   📚 Chargement de la classe: ${className}`);
-
-          // Essayer STATE.classesData en premier (InterfaceV2)
-          if (windowRef.STATE?.classesData?.[className]?.eleves) {
-            const classStudents = windowRef.STATE.classesData[className].eleves;
-            console.log(`      ✅ Trouvé ${classStudents.length} élèves dans STATE.classesData`);
-            students.push(...classStudents);
-          }
-          // Sinon essayer GROUPS_MODULE_V4_DATA.eleves
-          else if (windowRef.GROUPS_MODULE_V4_DATA?.eleves?.[className]) {
-            const classStudents = windowRef.GROUPS_MODULE_V4_DATA.eleves[className];
-            console.log(`      ✅ Trouvé ${classStudents.length} élèves dans GROUPS_MODULE_V4_DATA`);
-            students.push(...classStudents);
-          }
-          else {
-            console.warn(`      ⚠️ Aucun élève trouvé pour la classe ${className}`);
-          }
-        });
-
-        if (students.length === 0) {
-          console.error(`❌ Aucun élève trouvé pour ${regroupement.name}`);
-          throw new Error(`Aucun élève trouvé pour le regroupement "${regroupement.name}"`);
-        }
-
-        console.log(`   ✅ Total: ${students.length} élèves`);
-
-        // ✅ FIX: Utiliser scenario et mode depuis le payload au lieu de l'instance
-        const algoPayload = {
-          students,
-          numGroups: regroupement.groupCount, // ✅ L'algorithme attend 'numGroups'
-          scenario: payload.scenario || 'needs',
-          distributionMode: payload.mode || 'heterogeneous'
-        };
-
-        console.log(`   🎯 Appel algorithme avec:`, {
-          studentsCount: students.length,
-          scenario: algoPayload.scenario,
-          mode: algoPayload.distributionMode,
-          numGroups: algoPayload.numGroups
-        });
-
-        const result = algo.generateGroups(algoPayload);
-
-        results.push({
-          regroupement: regroupement.name,
-          regroupementId: regroupement.id,
-          groups: result.groups,
-          statistics: result.statistics,
-          alerts: result.alerts
-        });
-      });
-
-      console.log('✅ Génération terminée:', results);
-
-      // Déclencher un événement avec les résultats
-      const resultsEvent = new CustomEvent('groups:generated', {
-        detail: {
-          success: results.length > 0,
-          results: results,
-          scenario: payload.scenario,
-          mode: payload.mode,
-          timestamp: payload.timestamp
-        }
-      });
-
-      // ✅ FIX: Dispatcher sur event.target pour que le listener de bindGenerationEvents le reçoive
-      event.target.dispatchEvent(resultsEvent);
-    } catch (error) {
-      console.error('❌ Exception lors de la génération:', error);
-      event.target.dispatchEvent(new CustomEvent('groups:error', {
-        detail: { message: error.message, stack: error.stack }
-      }));
-    }
-  }
-  
   // Auto-initialisation si l'élément existe
   if (documentRef.readyState === 'loading') {
     documentRef.addEventListener('DOMContentLoaded', () => {
       const root = documentRef.querySelector('#groups-module-v4');
       if (root && !windowRef.__triptychModuleInstance) {
         windowRef.__triptychModuleInstance = new TriptychGroupsModule(root);
-        // Attacher le gestionnaire d'événement
-        root.addEventListener('groups:generate', handleGroupsGenerate);
+        console.log('✅ TriptychGroupsModule auto-initialisé (DOMContentLoaded)');
       }
     });
   } else {
     const root = documentRef.querySelector('#groups-module-v4');
     if (root && !windowRef.__triptychModuleInstance) {
       windowRef.__triptychModuleInstance = new TriptychGroupsModule(root);
-      // Attacher le gestionnaire d'événement
-      root.addEventListener('groups:generate', handleGroupsGenerate);
+      console.log('✅ TriptychGroupsModule auto-initialisé (readyState !== loading)');
     }
   }
 
   console.log('✅ InterfaceV4_Triptyque_Logic.js chargé');
 
-})(); // Pas de paramètre global
+})(this); // ✅ 'this' = objet global dans tous les environnements
     
