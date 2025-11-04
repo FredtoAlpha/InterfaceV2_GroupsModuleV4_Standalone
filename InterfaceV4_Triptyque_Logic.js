@@ -97,12 +97,17 @@
         return; // ✅ STOP - Ne pas continuer sans données
       }
 
+      // ✅ ÉTAPE 1 : Créer la structure HTML triptyque 30/40/30 AVANT tout
+      this.renderInitialStructure();
+
       this.state = {
         scenario: 'needs',
         distributionMode: 'heterogeneous',
         regroupementCount: 2,
         regroupements: [],
         availableClasses: availableClasses,
+        assignedClasses: [], // Nouvellement ajouté pour colonne B
+        currentCarouselIndex: 0, // Nouvellement ajouté pour colonne C
         generationLog: []
       };
 
@@ -716,6 +721,123 @@
           </div>
         </div>
       `;
+    }
+
+    /**
+     * ✅ NOUVEAU : Crée la structure HTML initiale du triptyque 30/40/30
+     * Remplace l'ancien système de phases par 3 colonnes permanentes
+     */
+    renderInitialStructure() {
+      if (!this.root) return;
+
+      // Injection du HTML triptyque complet (version compacte)
+      this.root.innerHTML = `
+        <style>
+          /* Structure triptyque 30/40/30 - Version inline compacte */
+          #groups-triptyque-container { display: flex; height: 100%; width: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+          .column-a { width: 30%; background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%); border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; overflow-y: auto; }
+          .column-b { width: 40%; background: #ffffff; border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; overflow-y: auto; }
+          .column-c { width: 30%; background: linear-gradient(180deg, #fafbfc 0%, #f9fafb 100%); display: flex; flex-direction: column; overflow-y: auto; }
+          .section-header { background: white; padding: 20px; border-bottom: 2px solid #e2e8f0; position: sticky; top: 0; z-index: 10; }
+          .section-title { font-size: 18px; font-weight: 700; color: #1e293b; margin-bottom: 8px; }
+          .section-subtitle { font-size: 13px; color: #64748b; line-height: 1.5; }
+          .scenario-btn { width: 100%; padding: 16px; margin-bottom: 12px; border: 2px solid #e2e8f0; border-radius: 12px; background: white; cursor: pointer; transition: all 0.2s; text-align: left; display: flex; align-items: center; gap: 12px; }
+          .scenario-btn:hover { border-color: #6366f1; background: #f5f3ff; }
+          .scenario-btn.is-active { border-color: #6366f1; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; }
+          .regroupement-card { background: white; border: 2px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 12px; cursor: pointer; }
+          .cta-banner { background: white; border-top: 2px solid #e2e8f0; padding: 16px 20px; position: sticky; bottom: 0; display: flex; gap: 12px; }
+          .cta-btn { flex: 1; padding: 14px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+          .cta-btn-primary { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; }
+        </style>
+
+        <div id="groups-triptyque-container">
+          <!-- COLONNE A : Scénarios et Contraintes (30%) -->
+          <div class="column-a">
+            <div class="section-header">
+              <div class="section-title">Scénarios</div>
+              <div class="section-subtitle">Choisissez le type de regroupement</div>
+            </div>
+            <div style="padding: 20px;">
+              <button class="scenario-btn is-active" data-scenario="needs">
+                <span style="font-size: 24px;">📊</span>
+                <div>
+                  <div style="font-size: 15px; font-weight: 700;">Besoins</div>
+                  <div style="font-size: 12px; opacity: 0.85;">Équilibrer les profils</div>
+                </div>
+              </button>
+              <button class="scenario-btn" data-scenario="lv2">
+                <span style="font-size: 24px;">🗣️</span>
+                <div>
+                  <div style="font-size: 15px; font-weight: 700;">LV2</div>
+                  <div style="font-size: 12px; opacity: 0.85;">Organiser par langue</div>
+                </div>
+              </button>
+              <button class="scenario-btn" data-scenario="options">
+                <span style="font-size: 24px;">⭐</span>
+                <div>
+                  <div style="font-size: 15px; font-weight: 700;">Options</div>
+                  <div style="font-size: 12px; opacity: 0.85;">Grouper par enseignements</div>
+                </div>
+              </button>
+            </div>
+            <div data-scenario-helper style="padding: 0 20px 20px; font-size: 13px; color: #64748b;"></div>
+            <div style="padding: 20px; background: white; margin: 0 20px 20px; border-radius: 12px; border: 1px solid #e2e8f0;">
+              <div style="font-size: 14px; font-weight: 700; margin-bottom: 12px;">⚙️ Distribution</div>
+              <div style="display: flex; gap: 8px;">
+                <button class="mode-btn" data-mode="heterogeneous" style="flex: 1; padding: 12px; border: 2px solid #3b82f6; border-radius: 8px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; cursor: pointer;">🔀 Hétérogène</button>
+                <button class="mode-btn" data-mode="homogeneous" style="flex: 1; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; background: white; cursor: pointer;">📊 Homogène</button>
+              </div>
+            </div>
+            <div data-mode-helper style="padding: 0 20px 20px; font-size: 13px; color: #64748b;"></div>
+          </div>
+
+          <!-- COLONNE B : Regroupements (40%) -->
+          <div class="column-b">
+            <div class="section-header">
+              <div class="section-title">Regroupements</div>
+              <div class="section-subtitle">Gérez vos associations de classes</div>
+            </div>
+            <div style="padding: 20px; flex: 1; overflow-y: auto;" id="regroupements-columns">
+              <!-- Cartes de regroupement générées dynamiquement -->
+            </div>
+            <div class="cta-banner">
+              <button class="cta-btn cta-btn-primary" id="generate-regroupements">⚡ Générer</button>
+              <button class="cta-btn" id="reset-regroupements" style="background: white; border: 2px solid #e2e8f0; color: #64748b;">🔄 Réinitialiser</button>
+            </div>
+          </div>
+
+          <!-- COLONNE C : Aperçu et Statistiques (30%) -->
+          <div class="column-c">
+            <div class="section-header">
+              <div class="section-title">Récapitulatif</div>
+              <div class="section-subtitle">Vue d'ensemble</div>
+            </div>
+            <div style="padding: 20px; flex: 1; overflow-y: auto;">
+              <div style="margin-bottom: 16px;">
+                <div style="font-size: 13px; font-weight: 700; color: #64748b; margin-bottom: 8px;">Scénario</div>
+                <div data-summary-scenario style="font-size: 14px; color: #1e293b;"></div>
+              </div>
+              <div style="margin-bottom: 16px;">
+                <div style="font-size: 13px; font-weight: 700; color: #64748b; margin-bottom: 8px;">Mode</div>
+                <div data-summary-mode style="font-size: 14px; color: #1e293b;"></div>
+              </div>
+              <div style="margin-bottom: 16px;">
+                <div style="font-size: 13px; font-weight: 700; color: #64748b; margin-bottom: 8px;">Regroupements</div>
+                <div data-summary-regroupements style="font-size: 14px; color: #1e293b;"></div>
+              </div>
+              <div id="regroupement-stats" style="background: white; padding: 16px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 16px;"></div>
+              <div id="regroupement-timeline" style="background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;"></div>
+              <div id="generation-log" style="margin-top: 16px; padding: 12px; background: #1e293b; color: #10b981; font-family: monospace; font-size: 11px; border-radius: 8px; max-height: 200px; overflow-y: auto;"></div>
+            </div>
+          </div>
+        </div>
+
+        <input type="number" id="regroupement-count" style="display: none;" />
+        <button id="apply-regroupement-count" style="display: none;"></button>
+        <button id="close-module" style="position: absolute; top: 16px; right: 16px; width: 32px; height: 32px; border-radius: 50%; background: white; border: 1px solid #e2e8f0; cursor: pointer; display: flex; align-items: center; justify-content: center;">✕</button>
+      `;
+
+      console.log('✅ Structure HTML triptyque 30/40/30 créée');
     }
 
     /**
