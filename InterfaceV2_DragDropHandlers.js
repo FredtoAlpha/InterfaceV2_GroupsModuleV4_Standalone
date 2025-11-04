@@ -68,9 +68,15 @@ function handleDragLeave(e) {
   e.currentTarget.classList.remove('drag-over', 'drop-forbidden');
 }
 
-// Exposer globalement
-window.handleDragStart = handleDragStart;
-window.handleDragEnd = handleDragEnd;
-window.handleDragOver = handleDragOver;
-window.handleDragEnter = handleDragEnter;
-window.handleDragLeave = handleDragLeave;
+// Exposer globalement (compatibilité Apps Script + navigateur)
+const globalRef = typeof globalThis !== 'undefined' ? globalThis :
+                   typeof window !== 'undefined' ? window :
+                   typeof self !== 'undefined' ? self : {};
+
+if (globalRef) {
+  globalRef.handleDragStart = handleDragStart;
+  globalRef.handleDragEnd = handleDragEnd;
+  globalRef.handleDragOver = handleDragOver;
+  globalRef.handleDragEnter = handleDragEnter;
+  globalRef.handleDragLeave = handleDragLeave;
+}

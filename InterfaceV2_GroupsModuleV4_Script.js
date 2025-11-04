@@ -81,96 +81,141 @@
           // ✅ ÉTAPE 3 FIX : Écouter l'événement groups:generate
           // et connecter au moteur GroupsAlgorithmV4
           if (trRoot) {
-            trRoot.addEventListener('groups:generate', (event) => {
-              console.log('🚀 Event groups:generate reçu avec payload:', event.detail);
+            // ✅ NOTE : Ne pas attacher ici si déjà attaché dans InterfaceV4_Triptyque_Logic.js
+            // Vérifier si l'écouteur existe déjà
+            if (!trRoot.hasAttribute('data-generate-listener-attached')) {
+              trRoot.addEventListener('groups:generate', (event) => {
+                console.log('🚀 Event groups:generate reçu avec payload:', event.detail);
 
-              // ✅ BLOC 4 FIX : Test robuste de l'API algorithme
-              if (!windowRef.GroupsAlgorithmV4 || typeof windowRef.GroupsAlgorithmV4 !== 'function') {
-                console.error('❌ GroupsAlgorithmV4 non disponible ou non constructible');
-                console.error('   Détails API:', {
-                  classExists: typeof windowRef.GroupsAlgorithmV4,
-                  isFunction: typeof windowRef.GroupsAlgorithmV4 === 'function',
-                  hasGenerateMethod: windowRef.GroupsAlgorithmV4?.prototype?.generateGroups ? 'oui' : 'non'
-                });
-                console.error('   ➜ Vérifier inclusion GroupsAlgorithmV4_Distribution.js (ligne 1468-1470 InterfaceV2.html)');
-                trRoot.dispatchEvent(new CustomEvent('groups:error', {
-                  detail: { message: 'Algorithme non disponible - Vérifiez inclusion GroupsAlgorithmV4_Distribution.js' }
-                }));
-                return;
-              }
-
-              // Test que l'API attendue existe
-              try {
-                const testAlgo = new windowRef.GroupsAlgorithmV4();
-                if (typeof testAlgo.generateGroups !== 'function') {
-                  throw new Error('generateGroups() n\'existe pas sur GroupsAlgorithmV4');
+                // ✅ BLOC 4 FIX : Test robuste de l'API algorithme
+                if (!windowRef.GroupsAlgorithmV4 || typeof windowRef.GroupsAlgorithmV4 !== 'function') {
+                  console.error('❌ GroupsAlgorithmV4 non disponible ou non constructible');
+                  console.error('   Détails API:', {
+                    classExists: typeof windowRef.GroupsAlgorithmV4,
+                    isFunction: typeof windowRef.GroupsAlgorithmV4 === 'function',
+                    hasGenerateMethod: windowRef.GroupsAlgorithmV4?.prototype?.generateGroups ? 'oui' : 'non'
+                  });
+                  console.error('   ➜ Vérifier inclusion GroupsAlgorithmV4_Distribution.js');
+                  trRoot.dispatchEvent(new CustomEvent('groups:error', {
+                    detail: { message: 'Algorithme non disponible - Vérifiez inclusion GroupsAlgorithmV4_Distribution.js' }
+                  }));
+                  return;
                 }
-                console.log('✅ GroupsAlgorithmV4 API validée');
-              } catch (testError) {
-                console.error('❌ Erreur validation API GroupsAlgorithmV4:', testError);
-                trRoot.dispatchEvent(new CustomEvent('groups:error', {
-                  detail: { message: 'API Algorithme invalide: ' + testError.message }
-                }));
-                return;
-              }
 
-              try {
-                // ✅ Transformer le payload du triptyque en payload algorithme
-                const triptychPayload = event.detail;
-                const regroupements = triptychPayload.regroupements || [];
+                // Test que l'API attendue existe
+                try {
+                  const testAlgo = new windowRef.GroupsAlgorithmV4();
+                  if (typeof testAlgo.generateGroups !== 'function') {
+                    throw new Error('generateGroups() n\'existe pas sur GroupsAlgorithmV4');
+                  }
+                  console.log('✅ GroupsAlgorithmV4 API validée');
+                } catch (testError) {
+                  console.error('❌ Erreur validation API GroupsAlgorithmV4:', testError);
+                  trRoot.dispatchEvent(new CustomEvent('groups:error', {
+                    detail: { message: 'API Algorithme invalide: ' + testError.message }
+                  }));
+                  return;
+                }
 
-                // Générer pour chaque regroupement
-                const results = regroupements.map((regroupement) => {
-                  console.log(`📋 Traitement du regroupement: ${regroupement.name}`);
+                try {
+                  // ✅ Transformer le payload du triptyque en payload algorithme
+                  const triptychPayload = event.detail;
+                  const regroupements = triptychPayload.regroupements || [];
 
-                  // Récupérer les élèves pour ce regroupement
-                  let students = [];
-                  (regroupement.classes || []).forEach((className) => {
-                    const classStudents = windowRef.GROUPS_MODULE_V4_DATA?.eleves?.[className] || [];
-                    students = students.concat(classStudents);
+                  console.log('📊 Sources de données disponibles:', {
+                    hasSTATE: !!windowRef.STATE,
+                    hasClassesData: !!windowRef.STATE?.classesData,
+                    hasGROUPS_MODULE_V4_DATA: !!windowRef.GROUPS_MODULE_V4_DATA,
+                    hasElevesInGROUPS: !!windowRef.GROUPS_MODULE_V4_DATA?.eleves
                   });
 
-                  console.log(`   Élèves: ${students.length}`);
+                  // Générer pour chaque regroupement
+                  const results = regroupements.map((regroupement) => {
+                    console.log(`📋 Traitement du regroupement: ${regroupement.name}`);
 
-                  // Créer payload algorithme
-                  const algoPayload = {
-                    students: students,
-                    scenario: triptychPayload.scenario || 'needs',
-                    distributionMode: triptychPayload.mode || 'heterogeneous',
-                    numGroups: regroupement.groupCount || 3
-                  };
+                    // ✅ AMÉLIORATION : Récupérer les élèves depuis la source appropriée
+                    let students = [];
+                    (regroupement.classes || []).forEach((className) => {
+                      console.log(`   📚 Chargement de la classe: ${className}`);
 
-                  // Instancier l'algorithme et générer
-                  const algorithm = new windowRef.GroupsAlgorithmV4();
-                  const result = algorithm.generateGroups(algoPayload);
+                      // Essayer STATE.classesData en premier (InterfaceV2)
+                      if (windowRef.STATE?.classesData?.[className]?.eleves) {
+                        const classStudents = windowRef.STATE.classesData[className].eleves;
+                        console.log(`      ✅ Trouvé ${classStudents.length} élèves dans STATE.classesData`);
+                        students = students.concat(classStudents);
+                      }
+                      // Sinon essayer GROUPS_MODULE_V4_DATA.eleves
+                      else if (windowRef.GROUPS_MODULE_V4_DATA?.eleves?.[className]) {
+                        const classStudents = windowRef.GROUPS_MODULE_V4_DATA.eleves[className];
+                        console.log(`      ✅ Trouvé ${classStudents.length} élèves dans GROUPS_MODULE_V4_DATA`);
+                        students = students.concat(classStudents);
+                      }
+                      else {
+                        console.warn(`      ⚠️ Aucun élève trouvé pour la classe ${className}`);
+                      }
+                    });
 
-                  return {
-                    regroupement: regroupement.name,
-                    ...result
-                  };
-                });
+                    if (students.length === 0) {
+                      console.error(`❌ Aucun élève trouvé pour ${regroupement.name}`);
+                      throw new Error(`Aucun élève trouvé pour le regroupement "${regroupement.name}"`);
+                    }
 
-                // ✅ Retourner les résultats au triptyque
-                console.log('✅ Génération réussie pour', results.length, 'regroupements');
-                trRoot.dispatchEvent(new CustomEvent('groups:generated', {
-                  detail: {
-                    success: true,
-                    results: results,
-                    summary: {
-                      regroupementCount: regroupements.length,
-                      scenario: triptychPayload.scenario,
-                      mode: triptychPayload.mode
-                    },
-                    timestamp: new Date().toISOString()
-                  }
-                }));
-              } catch (error) {
-                console.error('❌ Exception génération:', error);
-                trRoot.dispatchEvent(new CustomEvent('groups:error', {
-                  detail: { message: error.message, stack: error.stack }
-                }));
-              }
-            });
+                    console.log(`   ✅ Total: ${students.length} élèves`);
+
+                    // Créer payload algorithme
+                    const algoPayload = {
+                      students: students,
+                      scenario: triptychPayload.scenario || 'needs',
+                      distributionMode: triptychPayload.mode || 'heterogeneous',
+                      numGroups: regroupement.groupCount || 3
+                    };
+
+                    console.log(`   🎯 Appel algorithme avec:`, {
+                      studentsCount: students.length,
+                      scenario: algoPayload.scenario,
+                      mode: algoPayload.distributionMode,
+                      numGroups: algoPayload.numGroups
+                    });
+
+                    // Instancier l'algorithme et générer
+                    const algorithm = new windowRef.GroupsAlgorithmV4();
+                    const result = algorithm.generateGroups(algoPayload);
+
+                    return {
+                      regroupement: regroupement.name,
+                      regroupementId: regroupement.id,
+                      ...result
+                    };
+                  });
+
+                  // ✅ Retourner les résultats au triptyque
+                  console.log('✅ Génération réussie pour', results.length, 'regroupements');
+                  trRoot.dispatchEvent(new CustomEvent('groups:generated', {
+                    detail: {
+                      success: true,
+                      results: results,
+                      summary: {
+                        regroupementCount: regroupements.length,
+                        scenario: triptychPayload.scenario,
+                        mode: triptychPayload.mode
+                      },
+                      timestamp: new Date().toISOString()
+                    }
+                  }));
+                } catch (error) {
+                  console.error('❌ Exception génération:', error);
+                  trRoot.dispatchEvent(new CustomEvent('groups:error', {
+                    detail: { message: error.message, stack: error.stack }
+                  }));
+                }
+              });
+
+              // Marquer comme attaché pour éviter les doublons
+              trRoot.setAttribute('data-generate-listener-attached', 'true');
+              console.log('✅ Event listener groups:generate attaché au loader');
+            } else {
+              console.log('ℹ️ Event listener groups:generate déjà attaché');
+            }
 
             console.log('✅ Event listener groups:generate attaché');
 
