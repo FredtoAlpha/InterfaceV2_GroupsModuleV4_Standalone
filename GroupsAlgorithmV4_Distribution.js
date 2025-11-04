@@ -12,14 +12,9 @@
 (function() {
   'use strict';
 
-  // Détection robuste de l'objet global (sans dépendance à 'global')
-  const windowRef = typeof globalThis !== 'undefined'
-    ? globalThis
-    : typeof window !== 'undefined' 
-      ? window 
-      : typeof self !== 'undefined'
-        ? self
-        : {};
+  // ✅ FIX: Utilisation directe de globalThis (ES2020 standard)
+  // Compatible: Apps Script, navigateurs modernes, Node.js 12+
+  const windowRef = globalThis;
 
   class GroupsAlgorithmV4 {
     constructor() {

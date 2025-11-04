@@ -7,16 +7,10 @@
 (function() {
   'use strict';
 
-  // Détection robuste de l'environnement (sans dépendance à 'global')
-  const windowRef = typeof globalThis !== 'undefined'
-    ? globalThis
-    : typeof window !== 'undefined' 
-      ? window 
-      : typeof self !== 'undefined'
-        ? self
-        : {};
-  
-  const documentRef = windowRef.document;
+  // ✅ FIX: Utilisation directe de globalThis (ES2020 standard)
+  // Compatible: Apps Script, navigateurs modernes, Node.js 12+
+  const windowRef = globalThis;
+  const documentRef = globalThis.document;
 
   if (!windowRef || !documentRef) {
     console.warn('❌ TriptychGroupsModule: environnement navigateur non détecté');
