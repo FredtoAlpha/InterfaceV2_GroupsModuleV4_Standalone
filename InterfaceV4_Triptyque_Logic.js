@@ -97,12 +97,17 @@
         return; // ✅ STOP - Ne pas continuer sans données
       }
 
+      // ✅ ÉTAPE 1 : Créer la structure HTML triptyque 30/40/30 AVANT tout
+      this.renderInitialStructure();
+
       this.state = {
         scenario: 'needs',
         distributionMode: 'heterogeneous',
         regroupementCount: 2,
         regroupements: [],
         availableClasses: availableClasses,
+        assignedClasses: [], // Nouvellement ajouté pour colonne B
+        currentCarouselIndex: 0, // Nouvellement ajouté pour colonne C
         generationLog: []
       };
 
@@ -294,11 +299,49 @@
       // Bouton de réinitialisation
       if (this.dom.resetBtn) {
         this.dom.resetBtn.addEventListener('click', () => {
+          // ✅ FIX: Vider le log DOM avant de réinitialiser
+          if (this.dom.generationLog) {
+            this.dom.generationLog.innerHTML = '';
+          }
+
           this.state.regroupements = [];
+          this.state.generationLog = [];
+          this.state.lastGenerationResults = null; // ✅ Réinitialiser les résultats de génération
           this.ensureRegroupementPool();
           this.appendLog('🧽 Réinitialisation complète des regroupements.');
           this.renderRegroupements();
           this.renderSummary();
+
+          // ✅ Vider la preview
+          const groupsPreview = this.root.querySelector('#groups-preview');
+          if (groupsPreview) {
+            groupsPreview.innerHTML = '<p style="color: #64748b; padding: 20px; text-align: center;">Aucun groupe généré</p>';
+          }
+        });
+      }
+
+      // ✅ NOUVEAU : Boutons de navigation du carrousel
+      const carouselPrev = this.root.querySelector('#carousel-prev');
+      const carouselNext = this.root.querySelector('#carousel-next');
+
+      if (carouselPrev) {
+        carouselPrev.addEventListener('click', () => {
+          if (!this.state.lastGenerationResults || this.state.lastGenerationResults.length === 0) {
+            return;
+          }
+          this.state.currentCarouselIndex = Math.max(0, (this.state.currentCarouselIndex || 0) - 1);
+          this.renderGenerationPreview();
+        });
+      }
+
+      if (carouselNext) {
+        carouselNext.addEventListener('click', () => {
+          if (!this.state.lastGenerationResults || this.state.lastGenerationResults.length === 0) {
+            return;
+          }
+          const maxIndex = this.state.lastGenerationResults.length - 1;
+          this.state.currentCarouselIndex = Math.min(maxIndex, (this.state.currentCarouselIndex || 0) + 1);
+          this.renderGenerationPreview();
         });
       }
     }
@@ -719,6 +762,123 @@
     }
 
     /**
+     * ✅ NOUVEAU : Crée la structure HTML initiale du triptyque 30/40/30
+     * Remplace l'ancien système de phases par 3 colonnes permanentes
+     */
+    renderInitialStructure() {
+      if (!this.root) return;
+
+      // Injection du HTML triptyque complet (version compacte)
+      this.root.innerHTML = `
+        <style>
+          /* Structure triptyque 30/40/30 - Version inline compacte */
+          #groups-triptyque-container { display: flex; height: 100%; width: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+          .column-a { width: 30%; background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%); border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; overflow-y: auto; }
+          .column-b { width: 40%; background: #ffffff; border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; overflow-y: auto; }
+          .column-c { width: 30%; background: linear-gradient(180deg, #fafbfc 0%, #f9fafb 100%); display: flex; flex-direction: column; overflow-y: auto; }
+          .section-header { background: white; padding: 20px; border-bottom: 2px solid #e2e8f0; position: sticky; top: 0; z-index: 10; }
+          .section-title { font-size: 18px; font-weight: 700; color: #1e293b; margin-bottom: 8px; }
+          .section-subtitle { font-size: 13px; color: #64748b; line-height: 1.5; }
+          .scenario-btn { width: 100%; padding: 16px; margin-bottom: 12px; border: 2px solid #e2e8f0; border-radius: 12px; background: white; cursor: pointer; transition: all 0.2s; text-align: left; display: flex; align-items: center; gap: 12px; }
+          .scenario-btn:hover { border-color: #6366f1; background: #f5f3ff; }
+          .scenario-btn.is-active { border-color: #6366f1; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; }
+          .regroupement-card { background: white; border: 2px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 12px; cursor: pointer; }
+          .cta-banner { background: white; border-top: 2px solid #e2e8f0; padding: 16px 20px; position: sticky; bottom: 0; display: flex; gap: 12px; }
+          .cta-btn { flex: 1; padding: 14px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+          .cta-btn-primary { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; }
+        </style>
+
+        <div id="groups-triptyque-container">
+          <!-- COLONNE A : Scénarios et Contraintes (30%) -->
+          <div class="column-a">
+            <div class="section-header">
+              <div class="section-title">Scénarios</div>
+              <div class="section-subtitle">Choisissez le type de regroupement</div>
+            </div>
+            <div style="padding: 20px;">
+              <button class="scenario-btn is-active" data-scenario="needs">
+                <span style="font-size: 24px;">📊</span>
+                <div>
+                  <div style="font-size: 15px; font-weight: 700;">Besoins</div>
+                  <div style="font-size: 12px; opacity: 0.85;">Équilibrer les profils</div>
+                </div>
+              </button>
+              <button class="scenario-btn" data-scenario="lv2">
+                <span style="font-size: 24px;">🗣️</span>
+                <div>
+                  <div style="font-size: 15px; font-weight: 700;">LV2</div>
+                  <div style="font-size: 12px; opacity: 0.85;">Organiser par langue</div>
+                </div>
+              </button>
+              <button class="scenario-btn" data-scenario="options">
+                <span style="font-size: 24px;">⭐</span>
+                <div>
+                  <div style="font-size: 15px; font-weight: 700;">Options</div>
+                  <div style="font-size: 12px; opacity: 0.85;">Grouper par enseignements</div>
+                </div>
+              </button>
+            </div>
+            <div data-scenario-helper style="padding: 0 20px 20px; font-size: 13px; color: #64748b;"></div>
+            <div style="padding: 20px; background: white; margin: 0 20px 20px; border-radius: 12px; border: 1px solid #e2e8f0;">
+              <div style="font-size: 14px; font-weight: 700; margin-bottom: 12px;">⚙️ Distribution</div>
+              <div style="display: flex; gap: 8px;">
+                <button class="mode-btn" data-mode="heterogeneous" style="flex: 1; padding: 12px; border: 2px solid #3b82f6; border-radius: 8px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; cursor: pointer;">🔀 Hétérogène</button>
+                <button class="mode-btn" data-mode="homogeneous" style="flex: 1; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; background: white; cursor: pointer;">📊 Homogène</button>
+              </div>
+            </div>
+            <div data-mode-helper style="padding: 0 20px 20px; font-size: 13px; color: #64748b;"></div>
+          </div>
+
+          <!-- COLONNE B : Regroupements (40%) -->
+          <div class="column-b">
+            <div class="section-header">
+              <div class="section-title">Regroupements</div>
+              <div class="section-subtitle">Gérez vos associations de classes</div>
+            </div>
+            <div style="padding: 20px; flex: 1; overflow-y: auto;" id="regroupements-columns">
+              <!-- Cartes de regroupement générées dynamiquement -->
+            </div>
+            <div class="cta-banner">
+              <button class="cta-btn cta-btn-primary" id="generate-regroupements">⚡ Générer</button>
+              <button class="cta-btn" id="reset-regroupements" style="background: white; border: 2px solid #e2e8f0; color: #64748b;">🔄 Réinitialiser</button>
+            </div>
+          </div>
+
+          <!-- COLONNE C : Aperçu et Statistiques (30%) -->
+          <div class="column-c">
+            <div class="section-header">
+              <div class="section-title">Récapitulatif</div>
+              <div class="section-subtitle">Vue d'ensemble</div>
+            </div>
+            <div style="padding: 20px; flex: 1; overflow-y: auto;">
+              <div style="margin-bottom: 16px;">
+                <div style="font-size: 13px; font-weight: 700; color: #64748b; margin-bottom: 8px;">Scénario</div>
+                <div data-summary-scenario style="font-size: 14px; color: #1e293b;"></div>
+              </div>
+              <div style="margin-bottom: 16px;">
+                <div style="font-size: 13px; font-weight: 700; color: #64748b; margin-bottom: 8px;">Mode</div>
+                <div data-summary-mode style="font-size: 14px; color: #1e293b;"></div>
+              </div>
+              <div style="margin-bottom: 16px;">
+                <div style="font-size: 13px; font-weight: 700; color: #64748b; margin-bottom: 8px;">Regroupements</div>
+                <div data-summary-regroupements style="font-size: 14px; color: #1e293b;"></div>
+              </div>
+              <div id="regroupement-stats" style="background: white; padding: 16px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 16px;"></div>
+              <div id="regroupement-timeline" style="background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;"></div>
+              <div id="generation-log" style="margin-top: 16px; padding: 12px; background: #1e293b; color: #10b981; font-family: monospace; font-size: 11px; border-radius: 8px; max-height: 200px; overflow-y: auto;"></div>
+            </div>
+          </div>
+        </div>
+
+        <input type="number" id="regroupement-count" style="display: none;" />
+        <button id="apply-regroupement-count" style="display: none;"></button>
+        <button id="close-module" style="position: absolute; top: 16px; right: 16px; width: 32px; height: 32px; border-radius: 50%; background: white; border: 1px solid #e2e8f0; cursor: pointer; display: flex; align-items: center; justify-content: center;">✕</button>
+      `;
+
+      console.log('✅ Structure HTML triptyque 30/40/30 créée');
+    }
+
+    /**
      * ✅ BLOC 3 FIX : Écoute les résultats de génération du loader
      * et réinjecte les résultats dans l'interface
      */
@@ -743,9 +903,22 @@
         if (Array.isArray(detail.results)) {
           detail.results.forEach((result) => {
             const groupCount = result.groups?.length || 0;
-            const studentsTotal = result.groups?.reduce((sum, g) => sum + (g.students?.length || 0), 0) || 0;
+            const studentsTotal = result.groups?.reduce((sum, g) => sum + (g.length || 0), 0) || 0;
             this.appendLog(`   📌 ${result.regroupement}: ${groupCount} groupe(s) • ${studentsTotal} élève(s)`);
           });
+
+          // ✅ Afficher les statistiques globales de génération
+          const totalGroups = detail.results.reduce((sum, r) => sum + (r.groups?.length || 0), 0);
+          const totalStudents = detail.results.reduce((sum, r) =>
+            sum + (r.groups?.reduce((s, g) => s + (g.length || 0), 0) || 0), 0);
+          this.appendLog(`   📊 Total: ${totalGroups} groupes • ${totalStudents} élèves répartis`);
+
+          // ✅ Stocker les résultats dans l'état pour affichage dans preview
+          this.state.lastGenerationResults = detail.results;
+          this.state.currentCarouselIndex = 0; // Réinitialiser au premier regroupement
+
+          // ✅ Afficher la preview du premier regroupement
+          this.renderGenerationPreview();
         }
 
         // Rafraîchir le résumé avec les stats
@@ -760,6 +933,121 @@
       });
 
       console.log('✅ Event listeners génération attachés au triptyque');
+    }
+
+    /**
+     * ✅ NOUVEAU : Affiche la preview des groupes générés dans la colonne C
+     */
+    renderGenerationPreview() {
+      if (!this.state.lastGenerationResults || !Array.isArray(this.state.lastGenerationResults)) {
+        console.warn('⚠️ Aucun résultat de génération à afficher');
+        return;
+      }
+
+      const currentIndex = this.state.currentCarouselIndex || 0;
+      const currentResult = this.state.lastGenerationResults[currentIndex];
+
+      if (!currentResult) {
+        console.warn('⚠️ Résultat de génération introuvable à l\'index', currentIndex);
+        return;
+      }
+
+      // Afficher le titre du regroupement actuel
+      const carouselTitle = this.root.querySelector('#carousel-current-title');
+      if (carouselTitle) {
+        carouselTitle.textContent = currentResult.regroupement || `Regroupement ${currentIndex + 1}`;
+      }
+
+      // Afficher l'indicateur du carrousel
+      const carouselIndicator = this.root.querySelector('#carousel-indicator');
+      if (carouselIndicator) {
+        carouselIndicator.textContent = `${currentIndex + 1}/${this.state.lastGenerationResults.length}`;
+      }
+
+      // Afficher les groupes dans la preview
+      const groupsPreview = this.root.querySelector('#groups-preview');
+      if (!groupsPreview) return;
+
+      groupsPreview.innerHTML = '';
+
+      if (!currentResult.groups || !Array.isArray(currentResult.groups)) {
+        groupsPreview.innerHTML = '<p style="color: #64748b; padding: 20px; text-align: center;">Aucun groupe généré</p>';
+        return;
+      }
+
+      currentResult.groups.forEach((group, groupIndex) => {
+        const groupColumn = documentRef.createElement('div');
+        groupColumn.className = 'group-column';
+        groupColumn.style.cssText = 'background: white; border: 2px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 12px;';
+
+        const groupHeader = documentRef.createElement('div');
+        groupHeader.style.cssText = 'font-size: 12px; font-weight: 700; color: #64748b; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between;';
+        groupHeader.innerHTML = `<span>Groupe ${groupIndex + 1}</span><span>${group.length || 0} élèves</span>`;
+        groupColumn.appendChild(groupHeader);
+
+        if (Array.isArray(group)) {
+          group.forEach((student) => {
+            const studentItem = documentRef.createElement('div');
+            studentItem.style.cssText = 'padding: 8px; background: #f8fafc; border-radius: 6px; margin-bottom: 6px; font-size: 12px;';
+            const nom = student.nom || '';
+            const prenom = student.prenom || '';
+            const sexe = student.sexe ? `(${student.sexe})` : '';
+            studentItem.textContent = `${nom} ${prenom} ${sexe}`.trim();
+            groupColumn.appendChild(studentItem);
+          });
+        }
+
+        groupsPreview.appendChild(groupColumn);
+      });
+
+      // ✅ Afficher les statistiques du regroupement actuel
+      this.renderGenerationStats(currentResult);
+
+      console.log('✅ Preview de génération affichée pour', currentResult.regroupement);
+    }
+
+    /**
+     * ✅ NOUVEAU : Affiche les statistiques des groupes générés
+     */
+    renderGenerationStats(result) {
+      if (!result || !result.statistics) {
+        console.warn('⚠️ Pas de statistiques disponibles');
+        return;
+      }
+
+      const statsContainer = this.dom.statsContainer;
+      if (!statsContainer) return;
+
+      const stats = result.statistics;
+      const totalGroups = stats.length;
+      const totalStudents = stats.reduce((sum, s) => sum + (s.size || 0), 0);
+      const avgSize = totalGroups > 0 ? Math.round(totalStudents / totalGroups) : 0;
+
+      const totalFemales = stats.reduce((sum, s) => sum + (s.femaleCount || 0), 0);
+      const totalMales = stats.reduce((sum, s) => sum + (s.maleCount || 0), 0);
+      const parityPercent = totalStudents > 0
+        ? Math.round((Math.min(totalFemales, totalMales) / totalStudents) * 200)
+        : 0;
+
+      statsContainer.innerHTML = `
+        <div class="stat-card" style="padding: 12px; background: #f8fafc; border-radius: 8px; text-align: center; margin-bottom: 8px;">
+          <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">Groupes générés</div>
+          <div style="font-size: 20px; font-weight: 700; color: #1e293b;">${totalGroups}</div>
+        </div>
+        <div class="stat-card" style="padding: 12px; background: #f8fafc; border-radius: 8px; text-align: center; margin-bottom: 8px;">
+          <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">Élèves répartis</div>
+          <div style="font-size: 20px; font-weight: 700; color: #1e293b;">${totalStudents}</div>
+        </div>
+        <div class="stat-card" style="padding: 12px; background: #f8fafc; border-radius: 8px; text-align: center; margin-bottom: 8px;">
+          <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">Taille moyenne</div>
+          <div style="font-size: 20px; font-weight: 700; color: #1e293b;">${avgSize}</div>
+        </div>
+        <div class="stat-card" style="padding: 12px; background: #f8fafc; border-radius: 8px; text-align: center; margin-bottom: 8px;">
+          <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">Parité F/M</div>
+          <div style="font-size: 20px; font-weight: 700; color: #1e293b;">${totalFemales}F / ${totalMales}M</div>
+          <div style="font-size: 10px; color: #10b981; margin-top: 4px;">${parityPercent}% équilibré</div>
+        </div>
+      `;
     }
 
     /**
@@ -784,28 +1072,36 @@
   function handleGroupsGenerate(event) {
     const payload = event.detail;
     console.log('🎯 Événement groups:generate reçu:', payload);
-    
+
+    // ✅ FIX: Vérifier la structure du payload
+    if (!payload || !payload.regroupements || !Array.isArray(payload.regroupements)) {
+      console.error('❌ Payload invalide - regroupements manquant ou invalide');
+      alert('Erreur : Le payload de génération est invalide.');
+      return;
+    }
+
     // Vérifier si l'algorithme est disponible
     if (!windowRef.GroupsAlgorithmV4) {
       console.error('❌ GroupsAlgorithmV4 non disponible');
       alert('Erreur : L\'algorithme de génération n\'est pas chargé.');
       return;
     }
-    
+
     // Vérifier si les données élèves sont disponibles
     if (!windowRef.STATE || !windowRef.STATE.classesData) {
       console.error('❌ Données élèves non disponibles');
       alert('Erreur : Les données élèves ne sont pas chargées.');
       return;
     }
-    
+
     // Générer les groupes pour chaque regroupement
     const algo = new windowRef.GroupsAlgorithmV4();
     const results = [];
-    
-    payload.forEach((regroupement) => {
+
+    // ✅ FIX: Itérer sur payload.regroupements au lieu de payload directement
+    payload.regroupements.forEach((regroupement) => {
       console.log(`🔄 Génération pour ${regroupement.name}...`);
-      
+
       // Récupérer les élèves des classes sélectionnées
       const students = [];
       regroupement.classes.forEach((className) => {
@@ -814,31 +1110,49 @@
           students.push(...classData.eleves);
         }
       });
-      
+
       if (students.length === 0) {
         console.warn(`⚠️ Aucun élève trouvé pour ${regroupement.name}`);
         return;
       }
-      
-      // Appeler l'algorithme
+
+      // ✅ FIX: Utiliser scenario et mode depuis le payload au lieu de l'instance
       const result = algo.generateGroups({
         students,
-        groupCount: regroupement.groupCount,
-        scenario: windowRef.__triptychModuleInstance?.state.scenario || 'needs',
-        distributionMode: windowRef.__triptychModuleInstance?.state.distributionMode || 'heterogeneous'
+        numGroups: regroupement.groupCount, // ✅ L'algorithme attend 'numGroups'
+        scenario: payload.scenario || 'needs',
+        distributionMode: payload.mode || 'heterogeneous'
       });
-      
+
       results.push({
         regroupement: regroupement.name,
-        result
+        regroupementId: regroupement.id,
+        groups: result.groups,
+        statistics: result.statistics,
+        alerts: result.alerts
       });
     });
-    
+
     console.log('✅ Génération terminée:', results);
-    
+
     // Déclencher un événement avec les résultats
-    const resultsEvent = new CustomEvent('groups:generated', { detail: results });
-    documentRef.dispatchEvent(resultsEvent);
+    const resultsEvent = new CustomEvent('groups:generated', {
+      detail: {
+        success: results.length > 0,
+        results: results,
+        scenario: payload.scenario,
+        mode: payload.mode,
+        timestamp: payload.timestamp
+      }
+    });
+
+    // ✅ FIX: Dispatcher sur this.root au lieu de documentRef pour que le listener de bindGenerationEvents le reçoive
+    const rootElement = documentRef.querySelector('#groups-module-v4');
+    if (rootElement) {
+      rootElement.dispatchEvent(resultsEvent);
+    } else {
+      documentRef.dispatchEvent(resultsEvent);
+    }
   }
   
   // Auto-initialisation si l'élément existe
