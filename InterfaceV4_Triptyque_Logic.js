@@ -1076,82 +1076,116 @@
     // ✅ FIX: Vérifier la structure du payload
     if (!payload || !payload.regroupements || !Array.isArray(payload.regroupements)) {
       console.error('❌ Payload invalide - regroupements manquant ou invalide');
-      alert('Erreur : Le payload de génération est invalide.');
+      event.target.dispatchEvent(new CustomEvent('groups:error', {
+        detail: { message: 'Payload invalide - regroupements manquant ou invalide' }
+      }));
       return;
     }
 
     // Vérifier si l'algorithme est disponible
-    if (!windowRef.GroupsAlgorithmV4) {
+    if (!windowRef.GroupsAlgorithmV4 || typeof windowRef.GroupsAlgorithmV4 !== 'function') {
       console.error('❌ GroupsAlgorithmV4 non disponible');
-      alert('Erreur : L\'algorithme de génération n\'est pas chargé.');
+      console.error('   Détails API:', {
+        classExists: typeof windowRef.GroupsAlgorithmV4,
+        isFunction: typeof windowRef.GroupsAlgorithmV4 === 'function'
+      });
+      event.target.dispatchEvent(new CustomEvent('groups:error', {
+        detail: { message: 'Algorithme non disponible - Vérifiez inclusion GroupsAlgorithmV4_Distribution.js' }
+      }));
       return;
     }
 
-    // Vérifier si les données élèves sont disponibles
-    if (!windowRef.STATE || !windowRef.STATE.classesData) {
-      console.error('❌ Données élèves non disponibles');
-      alert('Erreur : Les données élèves ne sont pas chargées.');
-      return;
-    }
+    console.log('📊 Sources de données disponibles:', {
+      hasSTATE: !!windowRef.STATE,
+      hasClassesData: !!windowRef.STATE?.classesData,
+      hasGROUPS_MODULE_V4_DATA: !!windowRef.GROUPS_MODULE_V4_DATA,
+      hasElevesInGROUPS: !!windowRef.GROUPS_MODULE_V4_DATA?.eleves
+    });
 
-    // Générer les groupes pour chaque regroupement
-    const algo = new windowRef.GroupsAlgorithmV4();
-    const results = [];
+    try {
+      // Générer les groupes pour chaque regroupement
+      const algo = new windowRef.GroupsAlgorithmV4();
+      const results = [];
 
-    // ✅ FIX: Itérer sur payload.regroupements au lieu de payload directement
-    payload.regroupements.forEach((regroupement) => {
-      console.log(`🔄 Génération pour ${regroupement.name}...`);
+      // ✅ FIX: Itérer sur payload.regroupements au lieu de payload directement
+      payload.regroupements.forEach((regroupement) => {
+        console.log(`🔄 Génération pour ${regroupement.name}...`);
 
-      // Récupérer les élèves des classes sélectionnées
-      const students = [];
-      regroupement.classes.forEach((className) => {
-        const classData = windowRef.STATE.classesData[className];
-        if (classData && classData.eleves) {
-          students.push(...classData.eleves);
+        // ✅ AMÉLIORATION : Récupérer les élèves depuis la source appropriée
+        const students = [];
+        regroupement.classes.forEach((className) => {
+          console.log(`   📚 Chargement de la classe: ${className}`);
+
+          // Essayer STATE.classesData en premier (InterfaceV2)
+          if (windowRef.STATE?.classesData?.[className]?.eleves) {
+            const classStudents = windowRef.STATE.classesData[className].eleves;
+            console.log(`      ✅ Trouvé ${classStudents.length} élèves dans STATE.classesData`);
+            students.push(...classStudents);
+          }
+          // Sinon essayer GROUPS_MODULE_V4_DATA.eleves
+          else if (windowRef.GROUPS_MODULE_V4_DATA?.eleves?.[className]) {
+            const classStudents = windowRef.GROUPS_MODULE_V4_DATA.eleves[className];
+            console.log(`      ✅ Trouvé ${classStudents.length} élèves dans GROUPS_MODULE_V4_DATA`);
+            students.push(...classStudents);
+          }
+          else {
+            console.warn(`      ⚠️ Aucun élève trouvé pour la classe ${className}`);
+          }
+        });
+
+        if (students.length === 0) {
+          console.error(`❌ Aucun élève trouvé pour ${regroupement.name}`);
+          throw new Error(`Aucun élève trouvé pour le regroupement "${regroupement.name}"`);
+        }
+
+        console.log(`   ✅ Total: ${students.length} élèves`);
+
+        // ✅ FIX: Utiliser scenario et mode depuis le payload au lieu de l'instance
+        const algoPayload = {
+          students,
+          numGroups: regroupement.groupCount, // ✅ L'algorithme attend 'numGroups'
+          scenario: payload.scenario || 'needs',
+          distributionMode: payload.mode || 'heterogeneous'
+        };
+
+        console.log(`   🎯 Appel algorithme avec:`, {
+          studentsCount: students.length,
+          scenario: algoPayload.scenario,
+          mode: algoPayload.distributionMode,
+          numGroups: algoPayload.numGroups
+        });
+
+        const result = algo.generateGroups(algoPayload);
+
+        results.push({
+          regroupement: regroupement.name,
+          regroupementId: regroupement.id,
+          groups: result.groups,
+          statistics: result.statistics,
+          alerts: result.alerts
+        });
+      });
+
+      console.log('✅ Génération terminée:', results);
+
+      // Déclencher un événement avec les résultats
+      const resultsEvent = new CustomEvent('groups:generated', {
+        detail: {
+          success: results.length > 0,
+          results: results,
+          scenario: payload.scenario,
+          mode: payload.mode,
+          timestamp: payload.timestamp
         }
       });
 
-      if (students.length === 0) {
-        console.warn(`⚠️ Aucun élève trouvé pour ${regroupement.name}`);
-        return;
-      }
-
-      // ✅ FIX: Utiliser scenario et mode depuis le payload au lieu de l'instance
-      const result = algo.generateGroups({
-        students,
-        numGroups: regroupement.groupCount, // ✅ L'algorithme attend 'numGroups'
-        scenario: payload.scenario || 'needs',
-        distributionMode: payload.mode || 'heterogeneous'
-      });
-
-      results.push({
-        regroupement: regroupement.name,
-        regroupementId: regroupement.id,
-        groups: result.groups,
-        statistics: result.statistics,
-        alerts: result.alerts
-      });
-    });
-
-    console.log('✅ Génération terminée:', results);
-
-    // Déclencher un événement avec les résultats
-    const resultsEvent = new CustomEvent('groups:generated', {
-      detail: {
-        success: results.length > 0,
-        results: results,
-        scenario: payload.scenario,
-        mode: payload.mode,
-        timestamp: payload.timestamp
-      }
-    });
-
-    // ✅ FIX: Dispatcher sur this.root au lieu de documentRef pour que le listener de bindGenerationEvents le reçoive
-    const rootElement = documentRef.querySelector('#groups-module-v4');
-    if (rootElement) {
-      rootElement.dispatchEvent(resultsEvent);
-    } else {
-      documentRef.dispatchEvent(resultsEvent);
+      // ✅ FIX: Dispatcher sur event.target pour que le listener de bindGenerationEvents le reçoive
+      event.target.dispatchEvent(resultsEvent);
+    } catch (error) {
+      console.error('❌ Exception lors de la génération:', error);
+      event.target.dispatchEvent(new CustomEvent('groups:error', {
+        detail: { message: error.message, stack: error.stack }
+      }));
     }
   }
   
