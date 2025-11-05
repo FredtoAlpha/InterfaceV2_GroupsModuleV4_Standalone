@@ -11,33 +11,43 @@
 ### ✅ FIX 1 : Export global compatible Apps Script
 
 **Fichiers modifiés** :
-- `GroupsAlgorithmV4_Distribution.js`
-- `InterfaceV2_GroupsModuleV4_Script.js`
-- `InterfaceV4_Triptyque_Logic.js`
+- `GroupsAlgorithmV4_Distribution.js` - Pattern `(this)` pour export global
+- `InterfaceV2_GroupsModuleV4_Script.js` - Détection `window` pour UI
+- `InterfaceV4_Triptyque_Logic.js` - Détection `window` pour UI
 
-**Changement** :
+**Changement algorithme (n'utilise pas document)** :
 ```javascript
-// ❌ AVANT (ne fonctionnait pas dans Apps Script)
+// ❌ AVANT (objet vide dans Apps Script)
 (function() {
   const windowRef = typeof globalThis !== 'undefined'
     ? globalThis
     : typeof window !== 'undefined'
       ? window
-      : typeof self !== 'undefined'
-        ? self
-        : {};  // Objet vide local
+      : {};  // ❌ Objet vide local
 })();
 
-// ✅ APRÈS (compatible Apps Script, navigateurs, Node.js)
+// ✅ APRÈS (export global via this)
 (function(global) {
-  const windowRef = global;  // 'this' passé comme paramètre
-})(this);  // 'this' = objet global
+  const windowRef = global;
+  global.GroupsAlgorithmV4 = GroupsAlgorithmV4;
+})(this);  // ✅ 'this' = objet global
+```
+
+**Changement fichiers UI (utilisent document)** :
+```javascript
+// ✅ DÉTECTION window/document (code côté client/navigateur)
+(function() {
+  const windowRef = typeof window !== 'undefined'
+    ? window
+    : (typeof globalThis !== 'undefined' ? globalThis : {});
+  const documentRef = typeof document !== 'undefined' ? document : null;
+})();
 ```
 
 **Impact** :
-- ✅ `GroupsAlgorithmV4` est maintenant accessible globalement dans Apps Script
-- ✅ `windowRef`, `documentRef` pointent vers les bons objets globaux
-- ✅ Compatible avec tous les environnements : Apps Script, navigateurs, Node.js
+- ✅ `GroupsAlgorithmV4` accessible globalement (export via `this`)
+- ✅ Fichiers UI accèdent à `window` et `document` côté navigateur
+- ✅ Pas d'erreur "document is not defined"
 
 ---
 
@@ -152,23 +162,26 @@ console.log(typeof algo.generateGroups);
 ## 📝 FICHIERS MODIFIÉS
 
 1. **GroupsAlgorithmV4_Distribution.js**
-   - Lignes 11-17 : Pattern IIFE avec paramètre `global`
-   - Lignes 529-540 : Export via `global` + log confirmation
+   - Lignes 12-17 : Pattern IIFE `(function(global){})(this)` pour export
+   - Lignes 529-540 : Export global via `global.GroupsAlgorithmV4` + log
+   - **Raison** : Algorithme pur, n'utilise pas `document`
 
 2. **InterfaceV2_GroupsModuleV4_Script.js**
-   - Lignes 11-17 : Pattern IIFE avec paramètre `global`
-   - Ligne 311 : Fermeture IIFE avec `(this)`
+   - Lignes 11-16 : Détection `window`/`document` pour environnement navigateur
+   - Ligne 310 : Fermeture IIFE standard `()`
+   - **Raison** : Fichier UI, a besoin de `document`
 
 3. **InterfaceV4_Triptyque_Logic.js**
-   - Lignes 7-13 : Pattern IIFE avec paramètre `global`
-   - Lignes 1071-1073 : Suppression gestionnaire dupliqué
-   - Ligne 1088 : Fermeture IIFE avec `(this)`
+   - Lignes 7-12 : Détection `window`/`document` pour environnement navigateur
+   - Lignes 1071-1073 : Suppression gestionnaire `groups:generate` dupliqué
+   - Ligne 1087 : Fermeture IIFE standard `()`
+   - **Raison** : Fichier UI, a besoin de `document`
 
 4. **AUDIT_FIX_WINDOW_REFERENCE_ERROR.md** (nouveau)
    - Rapport d'audit complet des problèmes identifiés
 
 5. **FIXES_APPLIED.md** (ce fichier)
-   - Synthèse des corrections appliquées
+   - Synthèse des corrections avec pattern final
 
 ---
 
@@ -176,10 +189,11 @@ console.log(typeof algo.generateGroups);
 
 - [x] Syntaxe JavaScript valide (vérifié avec `node --check`)
 - [x] Export global `GroupsAlgorithmV4` accessible
-- [x] Pattern IIFE cohérent dans tous les fichiers
+- [x] Pattern IIFE adapté par type de fichier (algorithme vs UI)
+- [x] Pas d'erreur "document is not defined"
 - [x] Architecture clarifiée (loader vs UI)
 - [x] Pas de duplication d'event listeners
-- [x] Compatible Apps Script, navigateurs, Node.js
+- [x] Compatible navigateurs (fichiers UI tournent côté client)
 
 ---
 

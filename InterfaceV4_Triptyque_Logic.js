@@ -4,13 +4,12 @@
  * Remplace le système de phases successives
  */
 
-(function(global) {
+(function() {
   'use strict';
 
-  // ✅ FIX : Utiliser le paramètre 'global' passé via 'this'
-  // Compatible avec Apps Script, navigateurs, et environnements Node.js
-  const windowRef = global;
-  const documentRef = global.document;
+  // ✅ DÉTECTION ENVIRONNEMENT NAVIGATEUR (ce code tourne côté client)
+  const windowRef = typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : {});
+  const documentRef = typeof document !== 'undefined' ? document : null;
 
   if (!windowRef || !documentRef) {
     console.warn('❌ TriptychGroupsModule: environnement navigateur non détecté');
@@ -1085,5 +1084,5 @@
 
   console.log('✅ InterfaceV4_Triptyque_Logic.js chargé');
 
-})(this); // ✅ 'this' = objet global dans tous les environnements
+})(); // Fin IIFE
     
