@@ -268,9 +268,13 @@ const AppUtils = {
    * @returns {Array<string>} Liste des IDs
    */
   getCurrentClassContent(classe) {
+    if (typeof document === 'undefined') {
+      console.warn('[AppUtils] getCurrentClassContent appelé sans document disponible');
+      return [];
+    }
     const dropZone = document.querySelector(`.droppable-zone[data-classe="${classe}"]`);
     if (!dropZone) return [];
-    
+
     return Array.from(dropZone.querySelectorAll('.student-card'))
       .map(card => card.dataset.id)
       .filter(Boolean);
@@ -282,6 +286,10 @@ const AppUtils = {
    * @returns {HTMLElement|null}
    */
   findStudentZone(eleveId) {
+    if (typeof document === 'undefined') {
+      console.warn('[AppUtils] findStudentZone appelé sans document disponible');
+      return null;
+    }
     const card = document.querySelector(`.student-card[data-id="${eleveId}"]`);
     return card ? card.closest('.droppable-zone') : null;
   },
