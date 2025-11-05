@@ -1480,7 +1480,9 @@ function doGet(e) {
 
     if (allowedFiles.includes(fileName)) {
       try {
-        const content = HtmlService.createHtmlOutputFromFile(fileName).getContent();
+        // Retirer l'extension .js car Apps Script nécessite le nom de fichier sans extension
+        const baseName = fileName.replace('.js', '');
+        const content = HtmlService.createHtmlOutputFromFile(baseName).getContent();
         return HtmlService.createHtmlOutput(content)
           .setMimeType(HtmlService.MimeType.JAVASCRIPT);
       } catch (error) {
