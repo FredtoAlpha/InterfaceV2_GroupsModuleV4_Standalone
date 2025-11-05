@@ -876,6 +876,31 @@
               <div class="section-title">Regroupements</div>
               <div class="section-subtitle">Gérez vos associations de classes</div>
             </div>
+
+            <!-- ✅ NOUVEAU : Interface pour gérer le nombre de regroupements -->
+            <div style="padding: 16px 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+              <label style="display: flex; align-items: center; gap: 12px; font-size: 14px; color: #1e293b;">
+                <span style="font-weight: 600;">Nombre de regroupements :</span>
+                <input
+                  type="number"
+                  id="regroupement-count"
+                  min="1"
+                  max="10"
+                  value="2"
+                  style="width: 60px; padding: 6px 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px; text-align: center;"
+                />
+                <button
+                  id="apply-regroupement-count"
+                  style="padding: 6px 16px; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;"
+                >
+                  ✓ Appliquer
+                </button>
+              </label>
+              <div style="font-size: 12px; color: #64748b; margin-top: 6px;">
+                📌 Choisissez entre 1 et 10 regroupements
+              </div>
+            </div>
+
             <div style="padding: 20px; flex: 1; overflow-y: auto;" id="regroupements-columns">
               <!-- Cartes de regroupement générées dynamiquement -->
             </div>
@@ -911,8 +936,6 @@
           </div>
         </div>
 
-        <input type="number" id="regroupement-count" style="display: none;" />
-        <button id="apply-regroupement-count" style="display: none;"></button>
         <button id="close-module" style="position: absolute; top: 16px; right: 16px; width: 32px; height: 32px; border-radius: 50%; background: white; border: 1px solid #e2e8f0; cursor: pointer; display: flex; align-items: center; justify-content: center;">✕</button>
       `;
 

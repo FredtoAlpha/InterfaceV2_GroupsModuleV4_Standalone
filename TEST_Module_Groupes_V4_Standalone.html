@@ -204,19 +204,23 @@
                 continue;
               }
 
-              // Appeler l'algorithme
-              const results = algo.generateGroups(
-                students,
-                regroupement.groupCount,
-                payload.scenario || 'needs',
-                payload.mode || 'heterogeneous'
-              );
+              // ✅ CORRECTION : Appeler l'algorithme avec le BON FORMAT (objet payload unique)
+              const algoPayload = {
+                students: students,
+                scenario: payload.scenario || 'needs',
+                distributionMode: payload.mode || 'heterogeneous',
+                numGroups: regroupement.groupCount
+              };
 
-              console.log('  ✅ Généré:', results.length, 'groupes');
+              const result = algo.generateGroups(algoPayload);
+
+              console.log('  ✅ Généré:', result?.groups?.length || 0, 'groupes');
               allResults.push({
                 regroupementId: regroupement.id,
                 regroupementName: regroupement.name,
-                groups: results
+                groups: result?.groups || [],
+                statistics: result?.statistics || [],
+                alerts: result?.alerts || []
               });
             }
 
