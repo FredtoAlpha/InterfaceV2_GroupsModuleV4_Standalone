@@ -56,32 +56,18 @@ function doGet(e) {
 
     // ✨ AUTO-CHARGEMENT: Si le fichier n'est pas dans ScriptProperties, le charger automatiquement
     if (!fileContent) {
-      console.warn('[AUTO-LOAD] Fichier non trouve dans ScriptProperties: ' + fileName);
-      console.log('[AUTO-LOAD] Tentative de chargement automatique depuis le projet...');
-
-      fileContent = loadBundleFromProject(fileName);
-
-      if (fileContent) {
-        // Sauvegarder dans ScriptProperties pour les prochains appels
-        scriptProperties.setProperty('V4_' + fileName, fileContent);
-        console.log('[AUTO-LOAD] ✅ ' + fileName + ' charge automatiquement (' + fileContent.length + ' bytes)');
-      } else {
-        console.error('[AUTO-LOAD] ❌ Impossible de charger ' + fileName);
-        return HtmlService.createHtmlOutput(
-          '[ERREUR] Erreur 404: Fichier non trouve<br>' +
-          'Fichier: ' + fileName + '<br>' +
-          'Le fichier n\'existe ni dans ScriptProperties ni dans le projet Apps Script'
-        ).setMimeType(HtmlService.MimeType.HTML);
-      }
+      console.warn('[WARNING] Fichier non trouve dans ScriptProperties: ' + fileName);
+      return HtmlService.createHtmlOutput(
+        '[ERREUR] Erreur 404: Fichier non trouve<br>' +
+        'Fichier: ' + fileName + '<br>' +
+        'Solution: Executer uploadV4Bundles() pour charger les fichiers'
+      );
     }
 
     // Retourner avec le bon MIME type (JavaScript brut, pas HTML)
     console.log('[OK] Servant ' + fileName + ' (' + fileContent.length + ' bytes)');
-    return HtmlService.createTextOutput(fileContent)
-      .setMimeType(HtmlService.MimeType.JAVASCRIPT)
-      .setHeader('Content-Type', 'application/javascript; charset=utf-8')
-      .setHeader('Cache-Control', 'public, max-age=3600')
-      .setHeader('Access-Control-Allow-Origin', '*');
+    return ContentService.createTextOutput(fileContent)
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
 
   } catch (error) {
     console.error('[ERREUR] Erreur doGet:', error);
