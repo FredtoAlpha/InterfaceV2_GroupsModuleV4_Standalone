@@ -968,7 +968,8 @@
           detail.results.forEach((result) => {
             const groupCount = result.groups?.length || 0;
             const studentsTotal = result.groups?.reduce((sum, g) => sum + (g.length || 0), 0) || 0;
-            this.appendLog(`   📌 ${result.regroupement}: ${groupCount} groupe(s) • ${studentsTotal} élève(s)`);
+            const regroupementName = result.regroupementName || result.regroupement || result.passName || 'Regroupement';
+            this.appendLog(`   📌 ${regroupementName}: ${groupCount} groupe(s) • ${studentsTotal} élève(s)`);
           });
 
           // ✅ Afficher les statistiques globales de génération
