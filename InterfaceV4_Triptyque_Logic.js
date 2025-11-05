@@ -268,11 +268,21 @@
             this.appendLog(`❌ Génération impossible : ${ready.message}`);
             return;
           }
-          this.appendLog('🚀 Génération lancée pour tous les regroupements…');
+
+          // ✅ AMÉLIORATION : Utiliser seulement les regroupements valides
+          const validRegroupements = ready.validRegroupements;
+          const skippedCount = this.state.regroupements.length - validRegroupements.length;
+
+          if (skippedCount > 0) {
+            this.appendLog(`⚠️ ${skippedCount} regroupement(s) ignoré(s) (aucune classe associée)`);
+          }
+
+          this.appendLog(`🚀 Génération lancée pour ${validRegroupements.length} regroupement(s)…`);
 
           // ✅ ÉTAPE 3 : Payload complet avec scénario et mode
+          // Ne contient QUE les regroupements valides
           const payload = {
-            regroupements: this.state.regroupements.map((reg) => ({
+            regroupements: validRegroupements.map((reg) => ({
               id: reg.id,
               name: reg.name,
               classes: reg.classes,
@@ -411,10 +421,25 @@
       // Header
       const header = documentRef.createElement('div');
       header.className = 'regroupement-card__header';
-      
+
+      const titleWrapper = documentRef.createElement('div');
+      titleWrapper.style.display = 'flex';
+      titleWrapper.style.alignItems = 'center';
+      titleWrapper.style.gap = '8px';
+
       const title = documentRef.createElement('h3');
       title.textContent = regroupement.name;
-      header.appendChild(title);
+      titleWrapper.appendChild(title);
+
+      // ✅ Badge visuel si regroupement vide
+      if (regroupement.classes.length === 0) {
+        const badge = documentRef.createElement('span');
+        badge.style.cssText = 'background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;';
+        badge.textContent = 'VIDE';
+        titleWrapper.appendChild(badge);
+      }
+
+      header.appendChild(titleWrapper);
 
       const actions = documentRef.createElement('div');
       actions.className = 'regroupement-card__actions';
@@ -627,6 +652,7 @@
 
     /**
      * Rend le récapitulatif
+     * ✅ VERSION AMÉLIORÉE : Distingue les regroupements valides des vides
      */
     renderSummary() {
       if (this.dom.summaryScenario) {
@@ -640,7 +666,26 @@
       }
 
       if (this.dom.summaryRegroupements) {
-        const details = this.state.regroupements.map((reg) => `• ${reg.name} : ${reg.classes.length} classe(s), ${reg.groupCount} groupe(s)`).join('\n');
+        const validRegroupements = this.state.regroupements.filter((reg) => reg.classes.length > 0);
+        const emptyRegroupements = this.state.regroupements.filter((reg) => reg.classes.length === 0);
+
+        let details = '';
+
+        // Regroupements valides
+        if (validRegroupements.length > 0) {
+          details += validRegroupements.map((reg) =>
+            `• ${reg.name} : ${reg.classes.length} classe(s), ${reg.groupCount} groupe(s)`
+          ).join('\n');
+        }
+
+        // Regroupements vides (avec indicateur)
+        if (emptyRegroupements.length > 0) {
+          if (details) details += '\n';
+          details += emptyRegroupements.map((reg) =>
+            `• ${reg.name} : [VIDE] 0 classe(s), ${reg.groupCount} groupe(s)`
+          ).join('\n');
+        }
+
         this.dom.summaryRegroupements.textContent = details || 'Aucun regroupement configuré pour le moment.';
       }
     }
@@ -686,18 +731,21 @@
 
     /**
      * Valide les regroupements avant génération
+     * ✅ VERSION AMÉLIORÉE : Filtre les regroupements vides au lieu de bloquer
      */
     validateRegroupements() {
       if (!this.state.regroupements.length) {
         return { valid: false, message: 'aucun regroupement configuré.' };
       }
 
-      const incomplete = this.state.regroupements.find((reg) => reg.classes.length === 0);
-      if (incomplete) {
-        return { valid: false, message: `${incomplete.name} n'a aucune classe associée.` };
+      // Compter les regroupements valides (avec au moins 1 classe)
+      const validRegroupements = this.state.regroupements.filter((reg) => reg.classes.length > 0);
+
+      if (validRegroupements.length === 0) {
+        return { valid: false, message: 'aucun regroupement n\'a de classes associées. Ajoutez des classes à au moins un regroupement.' };
       }
 
-      return { valid: true };
+      return { valid: true, validRegroupements };
     }
 
     /**
@@ -828,6 +876,31 @@
               <div class="section-title">Regroupements</div>
               <div class="section-subtitle">Gérez vos associations de classes</div>
             </div>
+
+            <!-- ✅ NOUVEAU : Interface pour gérer le nombre de regroupements -->
+            <div style="padding: 16px 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+              <label style="display: flex; align-items: center; gap: 12px; font-size: 14px; color: #1e293b;">
+                <span style="font-weight: 600;">Nombre de regroupements :</span>
+                <input
+                  type="number"
+                  id="regroupement-count"
+                  min="1"
+                  max="10"
+                  value="2"
+                  style="width: 60px; padding: 6px 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px; text-align: center;"
+                />
+                <button
+                  id="apply-regroupement-count"
+                  style="padding: 6px 16px; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;"
+                >
+                  ✓ Appliquer
+                </button>
+              </label>
+              <div style="font-size: 12px; color: #64748b; margin-top: 6px;">
+                📌 Choisissez entre 1 et 10 regroupements
+              </div>
+            </div>
+
             <div style="padding: 20px; flex: 1; overflow-y: auto;" id="regroupements-columns">
               <!-- Cartes de regroupement générées dynamiquement -->
             </div>
@@ -863,8 +936,6 @@
           </div>
         </div>
 
-        <input type="number" id="regroupement-count" style="display: none;" />
-        <button id="apply-regroupement-count" style="display: none;"></button>
         <button id="close-module" style="position: absolute; top: 16px; right: 16px; width: 32px; height: 32px; border-radius: 50%; background: white; border: 1px solid #e2e8f0; cursor: pointer; display: flex; align-items: center; justify-content: center;">✕</button>
       `;
 
@@ -897,7 +968,8 @@
           detail.results.forEach((result) => {
             const groupCount = result.groups?.length || 0;
             const studentsTotal = result.groups?.reduce((sum, g) => sum + (g.length || 0), 0) || 0;
-            this.appendLog(`   📌 ${result.regroupement}: ${groupCount} groupe(s) • ${studentsTotal} élève(s)`);
+            const regroupementName = result.regroupementName || result.regroupement || result.passName || 'Regroupement';
+            this.appendLog(`   📌 ${regroupementName}: ${groupCount} groupe(s) • ${studentsTotal} élève(s)`);
           });
 
           // ✅ Afficher les statistiques globales de génération
