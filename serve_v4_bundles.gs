@@ -50,10 +50,11 @@ function doGet(e) {
       );
     }
 
-    // Récupérer le contenu du fichier (depuis Google Drive via ScriptProperties)
+    // Récupérer le contenu du fichier (depuis ScriptProperties)
     const scriptProperties = PropertiesService.getScriptProperties();
-    const fileContent = scriptProperties.getProperty('V4_' + fileName);
+    let fileContent = scriptProperties.getProperty('V4_' + fileName);
 
+    // ✨ AUTO-CHARGEMENT: Si le fichier n'est pas dans ScriptProperties, le charger automatiquement
     if (!fileContent) {
       console.warn('[WARNING] Fichier non trouve dans ScriptProperties: ' + fileName);
       return HtmlService.createHtmlOutput(
@@ -77,8 +78,44 @@ function doGet(e) {
 }
 
 /**
+ * ✨ NOUVELLE FONCTION: Charge un bundle depuis le projet Apps Script
+ * Lit directement le fichier .js du projet (pas depuis Drive)
+ */
+function loadBundleFromProject(fileName) {
+  try {
+    // Retirer l'extension .js pour obtenir le nom du fichier Apps Script
+    const baseName = fileName.replace('.js', '');
+
+    // Essayer de lire le fichier comme un fichier HTML (Apps Script stocke les .js comme HTML)
+    try {
+      const content = HtmlService.createHtmlOutputFromFile(baseName).getContent();
+      if (content && content.length > 0) {
+        console.log('[LOAD-PROJECT] ✅ Fichier trouve: ' + baseName + ' (' + content.length + ' bytes)');
+        return content;
+      }
+    } catch (htmlError) {
+      console.warn('[LOAD-PROJECT] Fichier HTML non trouve: ' + baseName);
+    }
+
+    // Si le fichier n'est pas trouvé comme HTML, essayer via Drive
+    const driveContent = getFileContentFromDrive(fileName);
+    if (driveContent) {
+      return driveContent;
+    }
+
+    console.error('[LOAD-PROJECT] ❌ Fichier introuvable: ' + fileName);
+    return null;
+
+  } catch (error) {
+    console.error('[LOAD-PROJECT] Erreur chargement ' + fileName + ':', error);
+    return null;
+  }
+}
+
+/**
  * Charger les fichiers V4 dans ScriptProperties
- * A executer UNE FOIS apres copier les fichiers JS dans le projet
+ * ⚠️ OBSOLÈTE: Cette fonction n'est plus nécessaire grâce à l'auto-chargement
+ * Mais conservée pour compatibilité
  */
 function uploadV4Bundles() {
   console.log('[PACKAGE] Chargement des bundles V4...');
@@ -193,4 +230,54 @@ function setV4BundleManually(fileName, content) {
   const scriptProperties = PropertiesService.getScriptProperties();
   scriptProperties.setProperty('V4_' + fileName, content);
   console.log('[OK] ' + fileName + ' defini manuellement (' + content.length + ' bytes)');
+}
+
+/**
+ * ✨ AUTO-INITIALISATION: Charge tous les bundles V4 au démarrage
+ * À appeler depuis onOpen() pour pré-charger tous les fichiers
+ * AVANTAGE: Plus besoin d'exécuter uploadV4Bundles() manuellement !
+ */
+function autoInitV4Bundles() {
+  console.log('[AUTO-INIT] 🚀 Initialisation automatique des bundles V4...');
+
+  const scriptProperties = PropertiesService.getScriptProperties();
+  const files = [
+    'InterfaceV4_Triptyque_Logic.js',
+    'GroupsAlgorithmV4_Distribution.js',
+    'InterfaceV2_GroupsModuleV4_Script.js'
+  ];
+
+  let loadedCount = 0;
+  let alreadyLoadedCount = 0;
+
+  files.forEach(fileName => {
+    try {
+      // Vérifier si le fichier est déjà chargé
+      const existing = scriptProperties.getProperty('V4_' + fileName);
+      if (existing && existing.length > 100) {
+        console.log('[AUTO-INIT] ✅ ' + fileName + ' déjà chargé (' + existing.length + ' bytes)');
+        alreadyLoadedCount++;
+        return;
+      }
+
+      // Charger le fichier depuis le projet
+      const content = loadBundleFromProject(fileName);
+      if (content) {
+        scriptProperties.setProperty('V4_' + fileName, content);
+        console.log('[AUTO-INIT] ✅ ' + fileName + ' chargé automatiquement (' + content.length + ' bytes)');
+        loadedCount++;
+      } else {
+        console.warn('[AUTO-INIT] ⚠️ ' + fileName + ' non trouvé - sera chargé au premier accès');
+      }
+    } catch (error) {
+      console.error('[AUTO-INIT] ❌ Erreur chargement ' + fileName + ':', error);
+    }
+  });
+
+  console.log('[AUTO-INIT] 🎉 Terminé: ' + loadedCount + ' fichiers chargés, ' + alreadyLoadedCount + ' déjà présents');
+  return {
+    loaded: loadedCount,
+    alreadyLoaded: alreadyLoadedCount,
+    total: files.length
+  };
 }

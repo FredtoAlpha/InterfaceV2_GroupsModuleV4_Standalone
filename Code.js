@@ -5,7 +5,7 @@
  */
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
-  
+
   // Menu principal
   ui.createMenu('🎓 Répartition Classes')
     .addItem('📊 Dashboard', 'showDashboard')
@@ -23,7 +23,7 @@ function onOpen() {
     .addItem('🔧 Paramètres Avancés', 'showAdvancedSettings')
     .addItem('📋 Logs Système', 'showSystemLogs')
     .addToUi();
-  
+
   // Menu LEGACY (Pipeline complet : Sources → TEST)
   ui.createMenu('⚙️ LEGACY Pipeline')
     .addItem('📋 Voir Classes Sources (6°1, 6°2...)', 'legacy_viewSourceClasses')
@@ -39,6 +39,19 @@ function onOpen() {
     .addSeparator()
     .addItem('📊 Voir Résultats TEST', 'legacy_viewTestResults')
     .addToUi();
+
+  // ✨ AUTO-INITIALISATION DES BUNDLES V4
+  // Charge automatiquement tous les fichiers V4 dans ScriptProperties
+  // Plus besoin d'exécuter uploadV4Bundles() manuellement !
+  try {
+    if (typeof autoInitV4Bundles === 'function') {
+      autoInitV4Bundles();
+      console.log('[ONOPEN] ✅ Bundles V4 initialisés automatiquement');
+    }
+  } catch (error) {
+    console.warn('[ONOPEN] ⚠️ Impossible d\'initialiser les bundles V4:', error);
+    // L'échec n'est pas bloquant - les fichiers seront chargés au premier accès (lazy loading)
+  }
 }
 
 /**
@@ -1467,7 +1480,9 @@ function doGet(e) {
 
     if (allowedFiles.includes(fileName)) {
       try {
-        const content = HtmlService.createHtmlOutputFromFile(fileName).getContent();
+        // Retirer l'extension .js car Apps Script nécessite le nom de fichier sans extension
+        const baseName = fileName.replace('.js', '');
+        const content = HtmlService.createHtmlOutputFromFile(baseName).getContent();
         return HtmlService.createHtmlOutput(content)
           .setMimeType(HtmlService.MimeType.JAVASCRIPT);
       } catch (error) {
