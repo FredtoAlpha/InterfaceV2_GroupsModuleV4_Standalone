@@ -30,10 +30,14 @@ function doGet(e) {
     const fileName = e.parameter.file;
 
     if (!fileName) {
-      return HtmlService.createHtmlOutput(
-        '❌ Erreur: Paramètre "file" manquant<br>' +
-        'Usage: ?file=InterfaceV4_Triptyque_Logic.js'
-      );
+      const usageMessage = [
+        "console.error('Parametre \\"file\\" manquant pour l\'endpoint V4.');",
+        "console.info('Usage: ?file=InterfaceV4_Triptyque_Logic.js');",
+        "console.info('Fichiers disponibles: InterfaceV4_Triptyque_Logic.js, GroupsAlgorithmV4_Distribution.js, InterfaceV2_GroupsModuleV4_Script.js');"
+      ].join('\n');
+
+      return ContentService.createTextOutput(usageMessage)
+        .setMimeType(ContentService.MimeType.JAVASCRIPT);
     }
 
     // Valider le nom du fichier (sécurité)
@@ -44,10 +48,13 @@ function doGet(e) {
     ];
 
     if (!allowedFiles.includes(fileName)) {
-      return HtmlService.createHtmlOutput(
-        '❌ Erreur: Fichier non autorisé<br>' +
-        'Fichiers disponibles: ' + allowedFiles.join(', ')
-      );
+      const errorMessage = [
+        "console.error('Fichier non autorise: " + fileName + "');",
+        "console.info('Fichiers disponibles: " + allowedFiles.join(', ') + "');"
+      ].join('\n');
+
+      return ContentService.createTextOutput(errorMessage)
+        .setMimeType(ContentService.MimeType.JAVASCRIPT);
     }
 
     // Récupérer le contenu du fichier (depuis Google Drive via ScriptProperties)
@@ -55,27 +62,27 @@ function doGet(e) {
     const fileContent = scriptProperties.getProperty('V4_' + fileName);
 
     if (!fileContent) {
-      console.warn(`⚠️ Fichier non trouvé dans ScriptProperties: ${fileName}`);
-      return HtmlService.createHtmlOutput(
-        '❌ Erreur 404: Fichier non trouvé<br>' +
-        'Fichier: ' + fileName + '<br>' +
-        'Solution: Exécuter uploadV4Bundles() pour charger les fichiers'
-      ).setMimeType(HtmlService.MimeType.HTML);
+      console.warn('Fichier non trouve dans ScriptProperties: ' + fileName);
+      const notFoundMessage = [
+        "console.error('Erreur 404: Fichier non trouve - " + fileName + "');",
+        "console.info('Solution: Executer uploadV4Bundles() pour charger les fichiers.');"
+      ].join('\n');
+
+      return ContentService.createTextOutput(notFoundMessage)
+        .setMimeType(ContentService.MimeType.JAVASCRIPT);
     }
 
     // Retourner avec le bon MIME type (JavaScript brut, pas HTML)
-    console.log(`✅ Servant ${fileName} (${fileContent.length} bytes)`);
-    return HtmlService.createTextOutput(fileContent)
-      .setMimeType(HtmlService.MimeType.JAVASCRIPT)
-      .setHeader('Content-Type', 'application/javascript; charset=utf-8')
-      .setHeader('Cache-Control', 'public, max-age=3600')
-      .setHeader('Access-Control-Allow-Origin', '*');
+    console.log('Servant ' + fileName + ' (' + fileContent.length + ' bytes)');
+    return ContentService.createTextOutput(fileContent)
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
 
   } catch (error) {
-    console.error('❌ Erreur doGet:', error);
-    return HtmlService.createHtmlOutput(
-      '❌ Erreur serveur: ' + error.message
-    );
+    console.error('Erreur doGet:', error);
+    return ContentService.createTextOutput(
+      "console.error('Erreur serveur: " + error.message.replace(/'/g, "\\'") + "');"
+    )
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
   }
 }
 
@@ -84,7 +91,7 @@ function doGet(e) {
  * À exécuter UNE FOIS après copier les fichiers JS dans le projet
  */
 function uploadV4Bundles() {
-  console.log('📦 Chargement des bundles V4...');
+  console.log('Chargement des bundles V4...');
 
   const scriptProperties = PropertiesService.getScriptProperties();
 
@@ -103,18 +110,18 @@ function uploadV4Bundles() {
       const content = getFileContentFromDrive(fileName);
       if (content) {
         scriptProperties.setProperty('V4_' + fileName, content);
-        console.log(`✅ ${fileName} chargé (${content.length} bytes)`);
+        console.log(fileName + ' charge (' + content.length + ' bytes)');
       } else {
-        console.warn(`⚠️ ${fileName} introuvable - placeholder utilisé`);
-        const placeholder = `// ❌ PLACEHOLDER: ${fileName} non chargé\nconsole.error('Fichier ${fileName} manquant');`;
+        console.warn(fileName + ' introuvable - placeholder utilise');
+        const placeholder = "// PLACEHOLDER: " + fileName + " non charge\\nconsole.error('Fichier " + fileName + " manquant');";
         scriptProperties.setProperty('V4_' + fileName, placeholder);
       }
     } catch (error) {
-      console.error(`❌ Erreur chargement ${fileName}:`, error);
+      console.error('Erreur chargement ' + fileName + ':', error);
     }
   });
 
-  console.log('✅ Bundles V4 chargés');
+  console.log('Bundles V4 charges');
 }
 
 /**
@@ -129,14 +136,14 @@ function getFileContentFromDrive(fileName) {
     if (files.hasNext()) {
       const file = files.next();
       const content = file.getAs('text/plain').getDataAsString();
-      console.log(`✅ Fichier trouvé: ${fileName}`);
+      console.log('Fichier trouve: ' + fileName);
       return content;
     } else {
-      console.warn(`⚠️ Fichier non trouvé dans Drive: ${fileName}`);
+      console.warn('Fichier non trouve dans Drive: ' + fileName);
       return null;
     }
   } catch (error) {
-    console.error(`❌ Erreur Drive pour ${fileName}:`, error);
+    console.error('Erreur Drive pour ' + fileName + ':', error);
     return null;
   }
 }
@@ -147,17 +154,15 @@ function getFileContentFromDrive(fileName) {
  */
 function getWebAppUrl() {
   const scriptId = ScriptApp.getScriptId();
-  console.log(`
-🌐 URL du Web App endpoint V4 :
-https://script.google.com/macros/d/${scriptId}/usercache
-
-Utilisation :
-- Charger Triptyque: ?file=InterfaceV4_Triptyque_Logic.js
-- Charger Algo: ?file=GroupsAlgorithmV4_Distribution.js
-- Charger Loader: ?file=InterfaceV2_GroupsModuleV4_Script.js
-
-MIME type retourné: application/javascript ✅
-  `);
+  console.log(
+    '\nURL du Web App endpoint V4 :\n' +
+    'https://script.google.com/macros/d/' + scriptId + '/usercache\n\n' +
+    'Utilisation :\n' +
+    '- Charger Triptyque: ?file=InterfaceV4_Triptyque_Logic.js\n' +
+    '- Charger Algo: ?file=GroupsAlgorithmV4_Distribution.js\n' +
+    '- Charger Loader: ?file=InterfaceV2_GroupsModuleV4_Script.js\n\n' +
+    'MIME type retourne: application/javascript'
+  );
   return scriptId;
 }
 
@@ -166,7 +171,7 @@ MIME type retourné: application/javascript ✅
  * Vérifie que tout fonctionne
  */
 function testV4Endpoint() {
-  console.log('🧪 Test du endpoint V4...');
+  console.log('Test du endpoint V4...');
 
   const scriptProperties = PropertiesService.getScriptProperties();
   const files = [
@@ -178,17 +183,17 @@ function testV4Endpoint() {
   files.forEach(fileName => {
     const content = scriptProperties.getProperty('V4_' + fileName);
     if (content) {
-      console.log(`✅ ${fileName}: ${content.length} bytes prêt`);
+      console.log(fileName + ': ' + content.length + ' bytes pret');
     } else {
-      console.warn(`⚠️ ${fileName}: MANQUANT - Exécuter uploadV4Bundles()`);
+      console.warn(fileName + ': MANQUANT - Executer uploadV4Bundles()');
     }
   });
 
-  console.log(`\n📝 Prochaines étapes:`);
-  console.log(`1. Déployer ce script en tant que Web App`);
-  console.log(`2. Exécuter uploadV4Bundles() pour charger les fichiers`);
-  console.log(`3. Exécuter getWebAppUrl() pour obtenir l'URL`);
-  console.log(`4. Utiliser l'URL dans le HTML pour charger les bundles V4`);
+  console.log('\nProchaines etapes:');
+  console.log('1. Deployer ce script en tant que Web App');
+  console.log('2. Executer uploadV4Bundles() pour charger les fichiers');
+  console.log('3. Executer getWebAppUrl() pour obtenir l\'URL');
+  console.log('4. Utiliser l\'URL dans le HTML pour charger les bundles V4');
 }
 
 /**
@@ -198,5 +203,5 @@ function testV4Endpoint() {
 function setV4BundleManually(fileName, content) {
   const scriptProperties = PropertiesService.getScriptProperties();
   scriptProperties.setProperty('V4_' + fileName, content);
-  console.log(`✅ ${fileName} défini manuellement (${content.length} bytes)`);
+  console.log(fileName + ' defini manuellement (' + content.length + ' bytes)');
 }
