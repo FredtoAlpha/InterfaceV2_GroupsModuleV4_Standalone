@@ -9,6 +9,10 @@ const SpinnerManager = {
    * Affiche le spinner global
    */
   show() {
+    if (typeof document === 'undefined') {
+      console.warn('[SpinnerManager] show ignoré : document indisponible');
+      return;
+    }
     const spinner = document.getElementById('loadingSpinner');
     if (spinner) {
       spinner.classList.remove('hidden');
@@ -19,6 +23,9 @@ const SpinnerManager = {
    * Masque le spinner global
    */
   hide() {
+    if (typeof document === 'undefined') {
+      return;
+    }
     const spinner = document.getElementById('loadingSpinner');
     if (spinner) {
       spinner.classList.add('hidden');
@@ -31,10 +38,14 @@ const SpinnerManager = {
    * @returns {HTMLElement} Élément spinner créé
    */
   showOn(element) {
-    const target = typeof element === 'string' 
-      ? document.querySelector(element) 
+    if (typeof document === 'undefined') {
+      console.warn('[SpinnerManager] showOn ignoré : document indisponible');
+      return null;
+    }
+    const target = typeof element === 'string'
+      ? document.querySelector(element)
       : element;
-    
+
     if (!target) return null;
 
     // Créer le spinner
@@ -68,6 +79,10 @@ const SpinnerManager = {
    * @returns {HTMLElement} Overlay créé
    */
   createOverlay(message = 'Chargement...') {
+    if (typeof document === 'undefined') {
+      console.warn('[SpinnerManager] createOverlay ignoré : document indisponible');
+      return null;
+    }
     const overlay = document.createElement('div');
     overlay.className = 'loading-overlay';
     overlay.style.cssText = `
@@ -97,6 +112,9 @@ const SpinnerManager = {
    * @param {HTMLElement} overlay - Overlay à supprimer
    */
   removeOverlay(overlay) {
+    if (typeof document === 'undefined') {
+      return;
+    }
     if (overlay && overlay.parentNode) {
       overlay.style.opacity = '0';
       overlay.style.transition = 'opacity 0.3s ease-out';
@@ -115,15 +133,19 @@ const SpinnerManager = {
    * @returns {Promise} Résultat de la fonction
    */
   async withSpinner(fn, message = null) {
+    if (typeof document === 'undefined') {
+      // Exécution serveur : exécuter la fonction sans spinner
+      return fn();
+    }
     let overlay = null;
-    
+
     try {
       if (message) {
         overlay = this.createOverlay(message);
       } else {
         this.show();
       }
-      
+
       const result = await fn();
       return result;
     } finally {
