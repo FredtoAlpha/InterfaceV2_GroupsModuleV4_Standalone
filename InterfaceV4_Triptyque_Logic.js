@@ -268,11 +268,21 @@
             this.appendLog(`❌ Génération impossible : ${ready.message}`);
             return;
           }
-          this.appendLog('🚀 Génération lancée pour tous les regroupements…');
+
+          // ✅ AMÉLIORATION : Utiliser seulement les regroupements valides
+          const validRegroupements = ready.validRegroupements;
+          const skippedCount = this.state.regroupements.length - validRegroupements.length;
+
+          if (skippedCount > 0) {
+            this.appendLog(`⚠️ ${skippedCount} regroupement(s) ignoré(s) (aucune classe associée)`);
+          }
+
+          this.appendLog(`🚀 Génération lancée pour ${validRegroupements.length} regroupement(s)…`);
 
           // ✅ ÉTAPE 3 : Payload complet avec scénario et mode
+          // Ne contient QUE les regroupements valides
           const payload = {
-            regroupements: this.state.regroupements.map((reg) => ({
+            regroupements: validRegroupements.map((reg) => ({
               id: reg.id,
               name: reg.name,
               classes: reg.classes,
@@ -411,10 +421,25 @@
       // Header
       const header = documentRef.createElement('div');
       header.className = 'regroupement-card__header';
-      
+
+      const titleWrapper = documentRef.createElement('div');
+      titleWrapper.style.display = 'flex';
+      titleWrapper.style.alignItems = 'center';
+      titleWrapper.style.gap = '8px';
+
       const title = documentRef.createElement('h3');
       title.textContent = regroupement.name;
-      header.appendChild(title);
+      titleWrapper.appendChild(title);
+
+      // ✅ Badge visuel si regroupement vide
+      if (regroupement.classes.length === 0) {
+        const badge = documentRef.createElement('span');
+        badge.style.cssText = 'background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;';
+        badge.textContent = 'VIDE';
+        titleWrapper.appendChild(badge);
+      }
+
+      header.appendChild(titleWrapper);
 
       const actions = documentRef.createElement('div');
       actions.className = 'regroupement-card__actions';
@@ -627,6 +652,7 @@
 
     /**
      * Rend le récapitulatif
+     * ✅ VERSION AMÉLIORÉE : Distingue les regroupements valides des vides
      */
     renderSummary() {
       if (this.dom.summaryScenario) {
@@ -640,7 +666,26 @@
       }
 
       if (this.dom.summaryRegroupements) {
-        const details = this.state.regroupements.map((reg) => `• ${reg.name} : ${reg.classes.length} classe(s), ${reg.groupCount} groupe(s)`).join('\n');
+        const validRegroupements = this.state.regroupements.filter((reg) => reg.classes.length > 0);
+        const emptyRegroupements = this.state.regroupements.filter((reg) => reg.classes.length === 0);
+
+        let details = '';
+
+        // Regroupements valides
+        if (validRegroupements.length > 0) {
+          details += validRegroupements.map((reg) =>
+            `• ${reg.name} : ${reg.classes.length} classe(s), ${reg.groupCount} groupe(s)`
+          ).join('\n');
+        }
+
+        // Regroupements vides (avec indicateur)
+        if (emptyRegroupements.length > 0) {
+          if (details) details += '\n';
+          details += emptyRegroupements.map((reg) =>
+            `• ${reg.name} : [VIDE] 0 classe(s), ${reg.groupCount} groupe(s)`
+          ).join('\n');
+        }
+
         this.dom.summaryRegroupements.textContent = details || 'Aucun regroupement configuré pour le moment.';
       }
     }
@@ -686,18 +731,21 @@
 
     /**
      * Valide les regroupements avant génération
+     * ✅ VERSION AMÉLIORÉE : Filtre les regroupements vides au lieu de bloquer
      */
     validateRegroupements() {
       if (!this.state.regroupements.length) {
         return { valid: false, message: 'aucun regroupement configuré.' };
       }
 
-      const incomplete = this.state.regroupements.find((reg) => reg.classes.length === 0);
-      if (incomplete) {
-        return { valid: false, message: `${incomplete.name} n'a aucune classe associée.` };
+      // Compter les regroupements valides (avec au moins 1 classe)
+      const validRegroupements = this.state.regroupements.filter((reg) => reg.classes.length > 0);
+
+      if (validRegroupements.length === 0) {
+        return { valid: false, message: 'aucun regroupement n\'a de classes associées. Ajoutez des classes à au moins un regroupement.' };
       }
 
-      return { valid: true };
+      return { valid: true, validRegroupements };
     }
 
     /**
