@@ -25,15 +25,15 @@
  * Handler Web App - GET requests
  * Retourne le contenu du fichier demandé avec le bon MIME type
  */
+const DEFAULT_V4_FILE = 'InterfaceV4_Triptyque_Logic.js';
+
 function doGet(e) {
   try {
-    const fileName = e.parameter.file;
+    const requestedFile = e && e.parameter ? e.parameter.file : null;
+    const fileName = requestedFile || DEFAULT_V4_FILE;
 
-    if (!fileName) {
-      return HtmlService.createHtmlOutput(
-        '[ERREUR] Parametre "file" manquant<br>' +
-        'Usage: ?file=InterfaceV4_Triptyque_Logic.js'
-      );
+    if (!requestedFile) {
+      console.info('[INFO] Parametre "file" absent - utilisation du fichier par defaut: ' + DEFAULT_V4_FILE);
     }
 
     // Valider le nom du fichier (sécurité)
@@ -60,16 +60,13 @@ function doGet(e) {
         '[ERREUR] Erreur 404: Fichier non trouve<br>' +
         'Fichier: ' + fileName + '<br>' +
         'Solution: Executer uploadV4Bundles() pour charger les fichiers'
-      ).setMimeType(HtmlService.MimeType.HTML);
+      );
     }
 
     // Retourner avec le bon MIME type (JavaScript brut, pas HTML)
     console.log('[OK] Servant ' + fileName + ' (' + fileContent.length + ' bytes)');
-    return HtmlService.createTextOutput(fileContent)
-      .setMimeType(HtmlService.MimeType.JAVASCRIPT)
-      .setHeader('Content-Type', 'application/javascript; charset=utf-8')
-      .setHeader('Cache-Control', 'public, max-age=3600')
-      .setHeader('Access-Control-Allow-Origin', '*');
+    return ContentService.createTextOutput(fileContent)
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
 
   } catch (error) {
     console.error('[ERREUR] Erreur doGet:', error);
@@ -150,6 +147,7 @@ function getWebAppUrl() {
   console.log('[WEB] URL du Web App endpoint V4 :\n' +
     'https://script.google.com/macros/d/' + scriptId + '/usercache\n\n' +
     'Utilisation :\n' +
+    '- Par defaut: InterfaceV4_Triptyque_Logic.js\n' +
     '- Charger Triptyque: ?file=InterfaceV4_Triptyque_Logic.js\n' +
     '- Charger Algo: ?file=GroupsAlgorithmV4_Distribution.js\n' +
     '- Charger Loader: ?file=InterfaceV2_GroupsModuleV4_Script.js\n\n' +
