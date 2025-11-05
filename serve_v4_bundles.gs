@@ -67,18 +67,29 @@ function doGet(e) {
         console.log('[AUTO-LOAD] ✅ ' + fileName + ' charge automatiquement (' + fileContent.length + ' bytes)');
       } else {
         console.error('[AUTO-LOAD] ❌ Impossible de charger ' + fileName);
-        return HtmlService.createHtmlOutput(
+        const errorOutput = HtmlService.createHtmlOutput(
           '[ERREUR] Erreur 404: Fichier non trouve<br>' +
           'Fichier: ' + fileName + '<br>' +
           'Le fichier n\'existe ni dans ScriptProperties ni dans le projet Apps Script'
-        ).setMimeType(HtmlService.MimeType.HTML);
+        );
+
+        if (HtmlService.MimeType && HtmlService.MimeType.HTML) {
+          errorOutput.setMimeType(HtmlService.MimeType.HTML);
+        }
+
+        return errorOutput;
       }
     }
 
     // Retourner avec le bon MIME type (JavaScript brut, pas HTML)
     console.log('[OK] Servant ' + fileName + ' (' + fileContent.length + ' bytes)');
-    return HtmlService.createTextOutput(fileContent)
-      .setMimeType(HtmlService.MimeType.JAVASCRIPT)
+    const successOutput = HtmlService.createTextOutput(fileContent);
+
+    if (HtmlService.MimeType && HtmlService.MimeType.JAVASCRIPT) {
+      successOutput.setMimeType(HtmlService.MimeType.JAVASCRIPT);
+    }
+
+    return successOutput
       .setHeader('Content-Type', 'application/javascript; charset=utf-8')
       .setHeader('Cache-Control', 'public, max-age=3600')
       .setHeader('Access-Control-Allow-Origin', '*');
