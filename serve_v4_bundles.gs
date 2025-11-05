@@ -60,16 +60,13 @@ function doGet(e) {
         '[ERREUR] Erreur 404: Fichier non trouve<br>' +
         'Fichier: ' + fileName + '<br>' +
         'Solution: Executer uploadV4Bundles() pour charger les fichiers'
-      ).setMimeType(HtmlService.MimeType.HTML);
+      );
     }
 
     // Retourner avec le bon MIME type (JavaScript brut, pas HTML)
     console.log('[OK] Servant ' + fileName + ' (' + fileContent.length + ' bytes)');
-    return HtmlService.createTextOutput(fileContent)
-      .setMimeType(HtmlService.MimeType.JAVASCRIPT)
-      .setHeader('Content-Type', 'application/javascript; charset=utf-8')
-      .setHeader('Cache-Control', 'public, max-age=3600')
-      .setHeader('Access-Control-Allow-Origin', '*');
+    return ContentService.createTextOutput(fileContent)
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
 
   } catch (error) {
     console.error('[ERREUR] Erreur doGet:', error);
