@@ -6,14 +6,24 @@
 
 class SaveProgressManager {
   constructor() {
+    this.isDOMAvailable =
+      typeof window !== 'undefined' && typeof document !== 'undefined';
     this.progressBar = null;
     this.progressFill = null;
     this.progressPercentage = null;
     this.currentSave = null;
-    this.init();
+    this.stepIds = ['step1', 'step2', 'step3', 'step4', 'step5'];
+
+    if (this.isDOMAvailable) {
+      this.init();
+    }
   }
-  
+
   init() {
+    if (!this.isDOMAvailable) {
+      return;
+    }
+
     // Créer la barre de progression dynamiquement
     const progressHTML = `
       <div id="saveProgressBar" class="save-progress-bar">
@@ -55,15 +65,19 @@ class SaveProgressManager {
     `;
     
     document.body.insertAdjacentHTML('beforeend', progressHTML);
-    
+
     this.progressBar = document.getElementById('saveProgressBar');
     this.progressFill = document.getElementById('progressBarFill');
     this.progressPercentage = document.getElementById('progressPercentage');
-    
+
     this.setupEventListeners();
   }
-  
+
   setupEventListeners() {
+    if (!this.isDOMAvailable) {
+      return;
+    }
+
     const minimizeBtn = document.getElementById('minimizeProgress');
     if (minimizeBtn) {
       minimizeBtn.addEventListener('click', () => this.toggleMinimize());
@@ -88,7 +102,7 @@ class SaveProgressManager {
       this.progressBar.classList.add('show');
     }
   }
-  
+
   hide() {
     if (this.progressBar) {
       this.progressBar.classList.remove('show');
@@ -96,25 +110,28 @@ class SaveProgressManager {
     this.currentSave = null;
     setTimeout(() => this.reset(), 300);
   }
-  
+
   updateProgress(percent, currentStep) {
+    if (!this.isDOMAvailable) {
+      return;
+    }
+
     if (this.progressFill) {
       this.progressFill.style.width = `${percent}%`;
     }
     if (this.progressPercentage) {
       this.progressPercentage.textContent = `${Math.round(percent)}%`;
     }
-    
+
     // Mettre à jour les étapes
-    const steps = ['step1', 'step2', 'step3', 'step4', 'step5'];
-    steps.forEach((step, idx) => {
+    this.stepIds.forEach((step, idx) => {
       const el = document.getElementById(step);
       if (!el) return;
-      
+
       if (step === currentStep) {
         el.classList.add('active');
         el.classList.remove('completed');
-      } else if (steps.indexOf(currentStep) > idx) {
+      } else if (this.stepIds.indexOf(currentStep) > idx) {
         el.classList.add('completed');
         el.classList.remove('active');
       } else {
@@ -122,7 +139,7 @@ class SaveProgressManager {
       }
     });
   }
-  
+
   complete(success = true) {
     if (success) {
       this.updateProgress(100, 'step5');
@@ -139,16 +156,19 @@ class SaveProgressManager {
     if (this.progressPercentage) {
       this.progressPercentage.textContent = '0%';
     }
-    
-    const steps = ['step1', 'step2', 'step3', 'step4', 'step5'];
-    steps.forEach(step => {
+
+    if (!this.isDOMAvailable) {
+      return;
+    }
+
+    this.stepIds.forEach(step => {
       const el = document.getElementById(step);
       if (el) {
         el.classList.remove('active', 'completed');
       }
     });
   }
-  
+
   toggleMinimize() {
     if (this.progressBar) {
       this.progressBar.classList.toggle('minimized');
@@ -156,5 +176,7 @@ class SaveProgressManager {
   }
 }
 
-// Exposer globalement
-window.SaveProgressManager = SaveProgressManager;
+// Exposer globalement quand le contexte navigateur est disponible
+if (typeof window !== 'undefined') {
+  window.SaveProgressManager = SaveProgressManager;
+}
