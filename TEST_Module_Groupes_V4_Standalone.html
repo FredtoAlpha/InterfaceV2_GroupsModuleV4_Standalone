@@ -116,12 +116,12 @@
     });
   </script>
 
-  <!-- Chargement des scripts du module -->
+  <!-- Chargement des scripts du module dans l'ORDRE CORRECT -->
   <script src="GroupsAlgorithmV4_Distribution.js"></script>
   <script src="InterfaceV4_Triptyque_Logic.js"></script>
 
   <script>
-    // ========== INITIALISATION DU MODULE ==========
+    // ========== INITIALISATION MANUELLE DU MODULE ==========
     document.addEventListener('DOMContentLoaded', () => {
       console.log('🚀 Initialisation du test standalone...');
 
@@ -139,7 +139,114 @@
       }
 
       console.log('✅ Scripts chargés avec succès');
-      console.log('✅ Module prêt pour les tests');
+      console.log('✅ GroupsAlgorithmV4:', typeof window.GroupsAlgorithmV4);
+      console.log('✅ TriptychGroupsModule:', typeof window.TriptychGroupsModule);
+
+      // ✅ L'AUTO-INITIALISATION de InterfaceV4_Triptyque_Logic.js a déjà créé l'instance
+      // sur #groups-module-v4. On vérifie qu'elle existe.
+      const moduleRoot = document.querySelector('#groups-module-v4');
+
+      if (!moduleRoot) {
+        console.error('❌ Élément #groups-module-v4 non trouvé !');
+        return;
+      }
+
+      if (!window.__triptychModuleInstance) {
+        console.error('❌ Instance TriptychGroupsModule non créée par auto-init !');
+        return;
+      }
+
+      console.log('✅ Instance TriptychGroupsModule auto-initialisée');
+      console.log('✅ Root element:', moduleRoot);
+
+      // ✅ ATTACHER LE EVENT LISTENER pour groups:generate
+      // C'est ce que fait normalement InterfaceV2_GroupsModuleV4_Script.js
+      // On attache sur #groups-module-v4 car c'est là que l'instance émet les événements
+      if (!moduleRoot.hasAttribute('data-generate-listener-attached')) {
+        moduleRoot.addEventListener('groups:generate', (event) => {
+          console.log('🚀 Event groups:generate reçu avec payload:', event.detail);
+
+          // Vérifier que l'algorithme est disponible
+          if (!window.GroupsAlgorithmV4 || typeof window.GroupsAlgorithmV4 !== 'function') {
+            console.error('❌ GroupsAlgorithmV4 non disponible !');
+            moduleRoot.dispatchEvent(new CustomEvent('groups:error', {
+              detail: { message: 'Algorithme non disponible' }
+            }));
+            return;
+          }
+
+          try {
+            const payload = event.detail;
+            const algo = new window.GroupsAlgorithmV4();
+
+            console.log('📊 Traitement de', payload.regroupements.length, 'regroupement(s)');
+
+            // Générer les groupes pour chaque regroupement
+            const allResults = [];
+            for (const regroupement of payload.regroupements) {
+              console.log('  📋 Regroupement:', regroupement.name, '- Classes:', regroupement.classes, '- Groupes:', regroupement.groupCount);
+
+              // Récupérer les élèves depuis window.STATE.classesData
+              const students = [];
+              for (const className of regroupement.classes) {
+                if (window.STATE?.classesData?.[className]?.eleves) {
+                  students.push(...window.STATE.classesData[className].eleves);
+                  console.log('    ✅ Classe', className, ':', window.STATE.classesData[className].eleves.length, 'élèves');
+                } else {
+                  console.warn('    ⚠️ Classe', className, ': aucun élève trouvé');
+                }
+              }
+
+              console.log('  👥 Total élèves:', students.length);
+
+              if (students.length === 0) {
+                console.warn('  ⚠️ Aucun élève à répartir pour ce regroupement');
+                continue;
+              }
+
+              // Appeler l'algorithme
+              const results = algo.generateGroups(
+                students,
+                regroupement.groupCount,
+                payload.scenario || 'needs',
+                payload.mode || 'heterogeneous'
+              );
+
+              console.log('  ✅ Généré:', results.length, 'groupes');
+              allResults.push({
+                regroupementId: regroupement.id,
+                regroupementName: regroupement.name,
+                groups: results
+              });
+            }
+
+            // Dispatcher les résultats
+            console.log('✅ Génération terminée, dispatch groups:generated');
+            moduleRoot.dispatchEvent(new CustomEvent('groups:generated', {
+              detail: {
+                success: allResults.length > 0,
+                results: allResults,
+                scenario: payload.scenario,
+                mode: payload.mode
+              }
+            }));
+
+          } catch (error) {
+            console.error('❌ Erreur lors de la génération:', error);
+            moduleRoot.dispatchEvent(new CustomEvent('groups:error', {
+              detail: { message: error.message, stack: error.stack }
+            }));
+          }
+        });
+
+        moduleRoot.setAttribute('data-generate-listener-attached', 'true');
+        console.log('✅ Event listener groups:generate attaché');
+      }
+
+      console.log('');
+      console.log('✨ Module V4 prêt pour les tests !');
+      console.log('📌 L\'interface devrait être visible ci-dessous');
+      console.log('🧪 Configurez un regroupement et cliquez "Générer" pour tester');
     });
   </script>
 </body>
