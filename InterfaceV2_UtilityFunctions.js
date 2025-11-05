@@ -4,6 +4,9 @@
  * Extrait de InterfaceV2_CoreScript.html pour modularité
  */
 
+const hasWindow = typeof window !== 'undefined';
+const hasDocument = typeof document !== 'undefined';
+
 // ========== APPELS GOOGLE APPS SCRIPT ==========
 function gsRun(fnName, ...args) {
   return new Promise((resolve, reject) => {
@@ -26,6 +29,11 @@ function gsRun(fnName, ...args) {
 
 // ========== FONCTION AFFICHAGE D'ERREUR UNIVERSELLE ==========
 function showErrorState(message, suggestions = []) {
+  if (!hasDocument) {
+    console.warn('showErrorState ignoré: document indisponible.');
+    return;
+  }
+
   const board = document.getElementById('board');
   if (!board) {
     console.error('Board introuvable');
@@ -68,6 +76,11 @@ function detectNiveau(data) {
 
 // ========== FONCTION DE TRI DES COLONNES ==========
 function sortColumn(classe, sortType, direction = 'asc') {
+  if (!hasDocument) {
+    console.warn('sortColumn ignoré: document indisponible.');
+    return;
+  }
+
   const dropZone = document.querySelector(`.droppable-zone[data-classe="${classe}"]`);
   if (!dropZone) return;
   
@@ -105,14 +118,14 @@ function sortColumn(classe, sortType, direction = 'asc') {
   cards.forEach(card => dropZone.appendChild(card));
   
   // Sauvegarder l'ordre de tri
-  if (window.STATE && window.STATE.sortOrder) {
+  if (hasWindow && window.STATE && window.STATE.sortOrder) {
     window.STATE.sortOrder[classe] = { type: sortType, dir: direction };
   }
 }
 
 // ========== FONCTION DE VALIDATION DES MOUVEMENTS ==========
 function canMove(eleveId, srcClasse, dstClasse) {
-  if (window.STATE && (window.STATE.adminMode || srcClasse === dstClasse)) {
+  if (hasWindow && window.STATE && (window.STATE.adminMode || srcClasse === dstClasse)) {
     return { ok: true };
   }
   
@@ -122,6 +135,11 @@ function canMove(eleveId, srcClasse, dstClasse) {
 
 // ========== FONCTION UTILITAIRE POUR RÉCUPÉRER LE CONTENU D'UNE CLASSE ==========
 function getCurrentClassContent(classe) {
+  if (!hasDocument) {
+    console.warn('getCurrentClassContent ignoré: document indisponible.');
+    return [];
+  }
+
   const dropZone = document.querySelector(`.droppable-zone[data-classe="${classe}"]`);
   if (!dropZone) return [];
   
@@ -131,6 +149,11 @@ function getCurrentClassContent(classe) {
 
 // ========== AJUSTEMENT TAILLE DES CARTES ==========
 function resizeCards() {
+  if (!hasDocument) {
+    console.warn('resizeCards ignoré: document indisponible.');
+    return;
+  }
+
   document.querySelectorAll('.student-card').forEach(card => {
     const w = card.offsetWidth;
     if (w < 120) {
@@ -141,11 +164,13 @@ function resizeCards() {
   });
 }
 
-// Exposer globalement
-window.gsRun = gsRun;
-window.showErrorState = showErrorState;
-window.detectNiveau = detectNiveau;
-window.sortColumn = sortColumn;
-window.canMove = canMove;
-window.getCurrentClassContent = getCurrentClassContent;
-window.resizeCards = resizeCards;
+// Exposer globalement uniquement si le contexte navigateur est disponible
+if (hasWindow) {
+  window.gsRun = gsRun;
+  window.showErrorState = showErrorState;
+  window.detectNiveau = detectNiveau;
+  window.sortColumn = sortColumn;
+  window.canMove = canMove;
+  window.getCurrentClassContent = getCurrentClassContent;
+  window.resizeCards = resizeCards;
+}

@@ -30,10 +30,16 @@ function doGet(e) {
     const fileName = e.parameter.file;
 
     if (!fileName) {
-      return HtmlService.createHtmlOutput(
-        '❌ Erreur: Paramètre "file" manquant<br>' +
-        'Usage: ?file=InterfaceV4_Triptyque_Logic.js'
-      );
+      const usageMessage = [
+        "console.error('❌ Paramètre \\"file\\" manquant pour l\'endpoint V4.');",
+        "console.info('Usage: ?file=InterfaceV4_Triptyque_Logic.js');",
+        "console.info('Fichiers disponibles: InterfaceV4_Triptyque_Logic.js, GroupsAlgorithmV4_Distribution.js, InterfaceV2_GroupsModuleV4_Script.js');"
+      ].join('\n');
+
+      return ContentService.createTextOutput(usageMessage)
+        .setMimeType(ContentService.MimeType.JAVASCRIPT)
+        .setHeader('Content-Type', 'application/javascript; charset=utf-8')
+        .setHeader('Cache-Control', 'no-store');
     }
 
     // Valider le nom du fichier (sécurité)
@@ -44,10 +50,15 @@ function doGet(e) {
     ];
 
     if (!allowedFiles.includes(fileName)) {
-      return HtmlService.createHtmlOutput(
-        '❌ Erreur: Fichier non autorisé<br>' +
-        'Fichiers disponibles: ' + allowedFiles.join(', ')
-      );
+      const errorMessage = [
+        "console.error('❌ Fichier non autorisé: " + fileName + "');",
+        "console.info('Fichiers disponibles: " + allowedFiles.join(', ') + "');"
+      ].join('\n');
+
+      return ContentService.createTextOutput(errorMessage)
+        .setMimeType(ContentService.MimeType.JAVASCRIPT)
+        .setHeader('Content-Type', 'application/javascript; charset=utf-8')
+        .setHeader('Cache-Control', 'no-store');
     }
 
     // Récupérer le contenu du fichier (depuis Google Drive via ScriptProperties)
@@ -56,26 +67,33 @@ function doGet(e) {
 
     if (!fileContent) {
       console.warn(`⚠️ Fichier non trouvé dans ScriptProperties: ${fileName}`);
-      return HtmlService.createHtmlOutput(
-        '❌ Erreur 404: Fichier non trouvé<br>' +
-        'Fichier: ' + fileName + '<br>' +
-        'Solution: Exécuter uploadV4Bundles() pour charger les fichiers'
-      ).setMimeType(HtmlService.MimeType.HTML);
+      const notFoundMessage = [
+        "console.error('❌ Erreur 404: Fichier non trouvé - " + fileName + "');",
+        "console.info('Solution: Exécuter uploadV4Bundles() pour charger les fichiers.');"
+      ].join('\n');
+
+      return ContentService.createTextOutput(notFoundMessage)
+        .setMimeType(ContentService.MimeType.JAVASCRIPT)
+        .setHeader('Content-Type', 'application/javascript; charset=utf-8')
+        .setHeader('Cache-Control', 'no-store');
     }
 
     // Retourner avec le bon MIME type (JavaScript brut, pas HTML)
     console.log(`✅ Servant ${fileName} (${fileContent.length} bytes)`);
-    return HtmlService.createTextOutput(fileContent)
-      .setMimeType(HtmlService.MimeType.JAVASCRIPT)
+    return ContentService.createTextOutput(fileContent)
+      .setMimeType(ContentService.MimeType.JAVASCRIPT)
       .setHeader('Content-Type', 'application/javascript; charset=utf-8')
       .setHeader('Cache-Control', 'public, max-age=3600')
       .setHeader('Access-Control-Allow-Origin', '*');
 
   } catch (error) {
     console.error('❌ Erreur doGet:', error);
-    return HtmlService.createHtmlOutput(
-      '❌ Erreur serveur: ' + error.message
-    );
+    return ContentService.createTextOutput(
+      "console.error('❌ Erreur serveur: " + error.message.replace(/'/g, "\\'") + "');"
+    )
+      .setMimeType(ContentService.MimeType.JAVASCRIPT)
+      .setHeader('Content-Type', 'application/javascript; charset=utf-8')
+      .setHeader('Cache-Control', 'no-store');
   }
 }
 
