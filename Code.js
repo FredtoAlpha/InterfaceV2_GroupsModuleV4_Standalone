@@ -1988,11 +1988,13 @@ function loadFINSheetsWithScores() {
         // I(8): TRA
         // J(9): PART
         // K(10): ABS
+        // O(14): SOURCE ← CLASSE D'ORIGINE (CRITIQUE POUR EXPORTS/SAUVEGARDES)
         // U(20): SCORE F ← CRITIQUE
         // V(21): SCORE M ← CRITIQUE
 
         const scoreF = parseFloat(row[20]) || 0;
         const scoreM = parseFloat(row[21]) || 0;
+        const classeSource = (row[14] || '').toString().trim(); // ✅ AJOUT : Colonne O - Classe d'origine
 
         // ⚠️ Vérification : si SCORE F et SCORE M sont tous les deux à 0, c'est peut-être un problème
         if (scoreF === 0 && scoreM === 0) {
@@ -2008,6 +2010,8 @@ function loadFINSheetsWithScores() {
           opt: (row[6] || '').toString().trim(),
           classe: name,  // ✅ AJOUT : Nom complet avec FIN (ex: "6°1FIN")
           classeCanonical: className,  // ✅ AJOUT : Nom sans suffixe (ex: "6°1")
+          SOURCE: classeSource,  // ✅ AJOUT CRITIQUE : Colonne O - Classe d'origine (majuscules)
+          source: classeSource,  // ✅ AJOUT CRITIQUE : Colonne O - Classe d'origine (minuscules pour fallback)
           scores: {
             // 🔑 SCORES ACADÉMIQUES (CRITIQUES POUR L'ALGORITHME DE GROUPES)
             F: scoreF,    // Colonne U : Score Français
