@@ -142,6 +142,18 @@
   </div>
 
   <script>
+  (function() {
+    'use strict';
+
+    // ═══════════════════════════════════════════════════════════════════
+    // 🛡️ DOM ENVIRONMENT GUARD
+    // ═══════════════════════════════════════════════════════════════════
+    if (typeof document === 'undefined') {
+      console.warn('[FinalisationUI] Skipping client-side code in server context');
+      return;
+    }
+    // ═══════════════════════════════════════════════════════════════════
+
     let availableClasses = []; // Stocker la liste complète des classes
 
     // Au chargement, récupérer les classes
@@ -405,6 +417,8 @@
         panelHeader.querySelector('.mat-header-expand').textContent = 'expand_less';
       }
     }
+
+  })(); // Fin du DOM Environment Guard IIFE
   </script>
 </body>
 </html>

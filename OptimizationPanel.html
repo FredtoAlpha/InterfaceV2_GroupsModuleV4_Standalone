@@ -1,4 +1,17 @@
 <script>
+(function() {
+  'use strict';
+
+  // ═══════════════════════════════════════════════════════════════════
+  // 🛡️ DOM ENVIRONMENT GUARD
+  // ═══════════════════════════════════════════════════════════════════
+  // Protection contre l'exécution de code DOM côté serveur Apps Script
+  if (typeof document === 'undefined') {
+    console.warn('[OptimizationPanel] Skipping client-side code in server context');
+    return;
+  }
+  // ═══════════════════════════════════════════════════════════════════
+
 /**
  * ===================================================================
  * HELPERS STREAMING (MODE DIRECT LIVE)
@@ -2851,6 +2864,8 @@ const OptimizationPanel = {
 window.OptimizationPanel = OptimizationPanel;
 
 console.log('✅ Module OptimizationPanel chargé');
+
+})(); // Fin du DOM Environment Guard IIFE
 </script>
 
 <style>

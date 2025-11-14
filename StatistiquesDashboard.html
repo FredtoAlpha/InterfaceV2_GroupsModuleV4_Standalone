@@ -237,6 +237,19 @@
   </div>
 
   <script>
+  (function() {
+    'use strict';
+
+    // ═══════════════════════════════════════════════════════════════════
+    // 🛡️ DOM ENVIRONMENT GUARD
+    // ═══════════════════════════════════════════════════════════════════
+    // Protection contre l'exécution de code DOM côté serveur Apps Script
+    if (typeof document === 'undefined') {
+      console.warn('[StatistiquesDashboard] Skipping client-side code in server context');
+      return;
+    }
+    // ═══════════════════════════════════════════════════════════════════
+
     google.charts.load('current', {'packages':['corechart', 'bar']});
     google.charts.setOnLoadCallback(initialize);
 
@@ -881,6 +894,8 @@
       const chart = new google.visualization.ColumnChart(document.getElementById('parityChart'));
       chart.draw(chartData, options);
     }
+
+  })(); // Fin du DOM Environment Guard IIFE
   </script>
 </body>
 </html>
